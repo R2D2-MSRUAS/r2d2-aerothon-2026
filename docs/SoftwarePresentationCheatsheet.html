@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroTHON 2026 — Software Q&A Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #0d2137; --teal: #007a6e; --teallt: #d0ede9;
+  --amber: #b05e00; --amberlt: #fdf0e0;
+  --red: #a33030; --redlt: #fce8e8;
+  --purple: #4a3fa0; --purplelt: #eeecfb;
+  --green: #1a7a3a; --greenlt: #e6f4ec;
+  --page: #f7f6f1; --white: #ffffff; --ink: #1a1a2e;
+  --mid: #666; --rule: #ddd;
+  --mono: 'JetBrains Mono', monospace;
+  --sans: 'Outfit', system-ui, sans-serif;
+  --serif: 'DM Serif Display', Georgia, serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: var(--sans); background: var(--page); color: var(--ink); font-size: 14px; line-height: 1.7; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 4rem; }
+
+/* COVER */
+.cover { background: var(--navy); color: #fff; padding: 3rem 2rem 2.5rem; margin-bottom: 2.5rem; }
+.cover-inner { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+.cover-eyebrow { font-family: var(--mono); font-size: 9px; letter-spacing: 0.25em; color: #5de0ce; text-transform: uppercase; margin-bottom: 1rem; }
+.cover h1 { font-family: var(--serif); font-size: 2.2rem; font-weight: 400; color: #fff; margin-bottom: 0.8rem; }
+.cover p { color: rgba(255,255,255,0.55); font-size: 0.9rem; max-width: 720px; }
+.cover-warn { display: inline-block; background: rgba(255,200,0,0.12); border: 1px solid rgba(255,200,0,0.3); color: #ffd060; font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; padding: 0.3rem 0.7rem; border-radius: 2px; margin-top: 1.2rem; }
+
+/* QUICK-NAV */
+.nav { background: var(--white); border: 1px solid var(--rule); border-radius: 4px; padding: 1.2rem 1.5rem; margin-bottom: 2rem; }
+.nav h3 { font-family: var(--mono); font-size: 8px; letter-spacing: 0.2em; color: var(--teal); text-transform: uppercase; margin-bottom: 0.75rem; }
+.nav ul { display: flex; flex-wrap: wrap; gap: 0.4rem; list-style: none; padding: 0; }
+.nav a { font-family: var(--mono); font-size: 10.5px; background: var(--navy); color: #5de0ce; padding: 0.3rem 0.7rem; border-radius: 2px; text-decoration: none; }
+.nav a:hover { background: var(--teal); color: #fff; }
+
+/* SECTION */
+.section { margin-bottom: 3rem; }
+.section-head { display: flex; align-items: baseline; gap: 0.8rem; margin-bottom: 0.2rem; }
+.section-num { font-family: var(--mono); font-size: 9px; color: var(--teal); letter-spacing: 0.15em; }
+h2 { font-family: var(--serif); font-size: 1.6rem; font-weight: 400; color: var(--navy); }
+hr.rule { border: none; border-top: 1px solid var(--rule); margin: 0.4rem 0 1.5rem; }
+p { margin-bottom: 0.85rem; color: #333; }
+h3 { font-size: 0.95rem; font-weight: 600; color: var(--navy); margin: 1.4rem 0 0.4rem; }
+
+/* Q&A BLOCKS */
+.qa { border-radius: 4px; margin: 1rem 0; overflow: hidden; }
+.qa-q { background: var(--navy); padding: 0.65rem 1rem; font-family: var(--mono); font-size: 10.5px; color: #ffd060; letter-spacing: 0.02em; }
+.qa-q::before { content: "JUDGE: "; color: #5de0ce; }
+.qa-a { background: var(--greenlt); border: 1px solid #b3d9c3; border-top: none; padding: 0.7rem 1rem; font-size: 0.9rem; color: #123; }
+.qa-a strong { color: var(--green); }
+
+/* ALERT BOXES */
+.alert { border-radius: 3px; padding: 0.85rem 1.1rem; margin: 1rem 0; font-size: 0.88rem; }
+.alert strong { font-weight: 600; display: block; margin-bottom: 0.2rem; }
+.a-teal   { background: var(--teallt); border-left: 3px solid var(--teal); color: #0a3d38; }
+.a-amber  { background: var(--amberlt); border-left: 3px solid var(--amber); color: #4a2800; }
+.a-red    { background: var(--redlt); border-left: 3px solid var(--red); color: #4a0000; }
+.a-purple { background: var(--purplelt); border-left: 3px solid var(--purple); color: #1e1860; }
+
+/* CODE BLOCKS */
+pre {
+  font-family: var(--mono); font-size: 11px;
+  background: #0e1117; color: #c9d1d9;
+  border-radius: 4px; padding: 1.1rem 1.3rem;
+  overflow-x: auto; margin: 0.75rem 0 1.2rem;
+  line-height: 1.9; white-space: pre;
+  border: 1px solid rgba(0,122,110,0.3);
+}
+/* Syntax colour helpers — inline spans */
+.kw  { color: #79c0ff; } .fn  { color: #d2a8ff; }
+.cm  { color: #6e7681; font-style: italic; }
+.st  { color: #a5d6ff; } .num { color: #ffa657; }
+.op  { color: #ff7b72; } .ty  { color: #ffa657; }
+code { font-family: var(--mono); font-size: 0.82em; background: rgba(0,0,0,0.07); padding: 0.1em 0.38em; border-radius: 2px; }
+
+/* PARAM TABLE */
+.table-wrap { overflow-x: auto; margin: 1rem 0; }
+table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+th { background: var(--navy); color: #fff; padding: 0.55rem 0.9rem; text-align: left; font-family: var(--mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; }
+td { padding: 0.5rem 0.9rem; border-bottom: 1px solid var(--rule); }
+tr:nth-child(even) td { background: #f0eeea; }
+
+/* GRID */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+.card { background: var(--white); border: 1px solid var(--rule); border-radius: 3px; padding: 0.9rem 1rem; }
+.card h4 { font-size: 0.85rem; font-weight: 600; color: var(--navy); margin-bottom: 0.4rem; }
+.card p, .card li { font-size: 0.85rem; color: #444; }
+.card ul { padding-left: 1.1rem; }
+
+@media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <p class="cover-eyebrow">AeroTHON 2026 · Section 3 · Autonomous Operation Methodology</p>
+    <h1>Software Q&A Reference<br>for Presentation Day</h1>
+    <p>This document gives your teammate everything they need to answer judge questions about the software — what each algorithm does, why it was designed that way, and how to explain it clearly. Every code block has comments written to help you understand the intent, not just the syntax.</p>
+    <span class="cover-warn">⚠ INTERNAL TEAM REFERENCE — NOT FOR SUBMISSION</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- NAV -->
+<div class="nav">
+  <h3>Jump to</h3>
+  <ul>
+    <li><a href="#s1">QR Detection</a></li>
+    <li><a href="#s2">Corridor Nav</a></li>
+    <li><a href="#s3">Obstacle Avoidance</a></li>
+    <li><a href="#s4">Red Zone</a></li>
+    <li><a href="#s5">Delivery ID</a></li>
+    <li><a href="#s6">Payload Deployment</a></li>
+    <li><a href="#s7">CG Compensation</a></li>
+    <li><a href="#s8">Camera Pipeline</a></li>
+    <li><a href="#s9">Emergency RTL</a></li>
+    <li><a href="#s10">Parameters</a></li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s1">
+  <div class="section-head"><span class="section-num">TOPIC 01</span><h2>QR Code Detection Pipeline</h2></div>
+  <hr class="rule">
+
+  <p><strong>One-line summary:</strong> The OAK-D Lite's Myriad X VPU finds the QR region in the full image and sends only a tiny greyscale crop to the Jetson, which runs ZBar C++ to decode it. The Jetson never processes a full camera frame.</p>
+
+  <div class="alert a-teal">
+    <strong>The key architectural insight — say this if asked why we split QR decode across two chips:</strong>
+    Running ZBar on a full 4K frame at 60 fps on the Jetson would consume the entire CPU budget. By having the Myriad X VPU crop out just the likely QR region first (typically 200×200 px), ZBar decodes a tiny image in under 1 ms. This is the only way to stay inside the 30 ms FSM cycle.
+  </div>
+
+<pre><span class="cm">/**
+ * QR DETECTION LOOP
+ * 
+ * Architecture: two-stage decode
+ *   Stage 1: Myriad X VPU (inside OAK-D Lite)
+ *            → scans full RGB frame
+ *            → finds highest-contrast rectangle (likely a QR)
+ *            → crops it to greyscale ROI (tiny image)
+ *            → sends to Jetson via USB 3.0
+ *
+ *   Stage 2: Jetson TX2 NX CPU
+ *            → receives small greyscale crop
+ *            → runs ZBar C++ plugin (fast: small image)
+ *            → stores decoded string as target_id
+ *
+ * Why this split?
+ *   ZBar on full 4K @ 60fps on the Jetson = ~20ms/frame = budget blown.
+ *   ZBar on a 200x200 crop               = ~0.5ms/frame = trivial.
+ *   The Myriad X does the hard spatial search for free (dedicated NPU).
+ *
+ * This function runs inside the 30ms FSM cycle.
+ * The drone HOLDS POSITION at 5m until target_id is confirmed.
+ */</span>
+
+<span class="ty">string</span> target_id = <span class="st">""</span>;    <span class="cm">// Will be set when QR is decoded. Empty = gate not passed.</span>
+<span class="ty">int</span>    fail_count = <span class="num">0</span>;    <span class="cm">// Counts consecutive frames where ZBar finds nothing.</span>
+
+<span class="kw">for</span> (<span class="cm">/* each camera frame from OAK-D pipeline */</span>) {
+
+    <span class="cm">// Step 1: Myriad X has already done the heavy lifting.
+    // get_qr_crop() returns the pre-cropped greyscale ROI from the VPU.
+    // This is NOT the full image — it is a small rectangle around
+    // the highest-contrast region the VPU detected.</span>
+    <span class="ty">auto</span> roi = myriad_x.<span class="fn">get_qr_crop</span>();
+
+    <span class="cm">// Step 2: ZBar decodes the tiny crop.
+    // Fast because the input is small.
+    // zbar.scan() returns the decoded string if a valid QR is found,
+    // or an empty string if not.</span>
+    <span class="ty">string</span> decoded = zbar.<span class="fn">scan</span>(roi);
+
+    <span class="kw">if</span> (!decoded.<span class="fn">empty</span>()) {
+        target_id  = decoded;            <span class="cm">// Mission gate passed. Store the target.</span>
+        fail_count = <span class="num">0</span>;
+        <span class="fn">transition_to</span>(PHASE_BANNER_DETECT);   <span class="cm">// Proceed to find corridor entrance.</span>
+
+    } <span class="kw">else</span> {
+        fail_count++;
+        <span class="cm">// If we have missed 8 consecutive frames (~130ms at 60fps),
+        // the OAK-D Lite view of the QR is probably blocked or angled.
+        // Switch to Arducam B0251 which faces straight down via CSI
+        // giving a near-nadir view from 5m altitude. This is much easier
+        // to decode than a tilted view.</span>
+        <span class="kw">if</span> (fail_count >= <span class="num">8</span>)
+            <span class="fn">switch_camera</span>(ARDUCAM_CSI);   <span class="cm">// CSI port confirmed on TX2 NX carrier.</span>
+    }
+}
+<span class="cm">// Drone stays hovering at 5m until target_id is set.
+// No timeout — 15-minute mission clock is the only limit.</span></pre>
+
+  <div class="qa">
+    <div class="qa-q">Why doesn't the Jetson just decode the QR directly from the full camera stream?</div>
+    <div class="qa-a">Because <strong>ZBar on a 4K frame at 60fps would take ~20ms per frame</strong>, which is the entire FSM cycle budget. By having the Myriad X find and crop the QR region first, ZBar only processes a ~200×200 pixel image — about 0.5ms. The Myriad X does the spatial search for free on its dedicated NPU.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">What if the QR code is at an angle or partially obscured?</div>
+    <div class="qa-a">After 8 consecutive failed frames (~130ms), we switch to the Arducam B0251. This camera faces straight down (10° tilt) via CSI port on the TX2 NX carrier board. At 5m altitude directly above the QR, this gives a near-nadir view which ZBar decodes much more reliably than a tilted OAK-D view.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">What does "ZBar C++" mean? Isn't there a Python library?</div>
+    <div class="qa-a">ZBar is a C library. We run it as a native C plugin inside GStreamer — not through Python bindings. <strong>There is zero Python in the flight path.</strong> Everything is C++. Python would add interpreter overhead and GIL issues that are unacceptable in a real-time loop.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s2">
+  <div class="section-head"><span class="section-num">TOPIC 02</span><h2>Corridor Navigation — Forward Lap</h2></div>
+  <hr class="rule">
+
+  <div class="alert a-amber">
+    <strong>Most likely judge question — memorise this answer:</strong>
+    "Why doesn't the forward lap use obstacle avoidance?" Answer: The competition rules (confirmed by our team contact) state there are NO physical obstacles in the forward-lap corridor. Running A-star and Visual SLAM on the forward lap would waste 15–25ms of our 30ms budget for nothing. We save the full pipeline for the return lap where obstacles are actually present.
+  </div>
+
+  <p>The forward lap uses <strong>depth-centring</strong>: sample the depth map at left and right column regions, compute the asymmetry, and send a proportional lateral velocity correction to keep the drone equidistant from both walls.</p>
+
+<pre><span class="cm">/**
+ * FORWARD LAP — Corridor Wall-Following
+ *
+ * What it does:
+ *   Keeps the drone centred in the 3.5m corridor by reading the
+ *   depth to the left wall and the right wall each frame, then
+ *   applying a lateral velocity correction proportional to the
+ *   asymmetry between them.
+ *
+ * Why not A-star here?
+ *   Forward lap has NO obstacles (confirmed). A-star path planning
+ *   + Visual SLAM together take 15–25ms on the TX2 NX. Our total
+ *   FSM cycle budget is 30ms. Running obstacle nav on an empty
+ *   corridor would leave only 5–15ms for everything else.
+ *
+ * Input:  depth_map — stereo depth image from Myriad X VPU (each 30ms)
+ * Output: lateral velocity command vy_cmd sent to Pixhawk via MAVLink
+ */</span>
+<span class="ty">void</span> <span class="fn">corridor_centre_control</span>(<span class="kw">const</span> DepthFrame&amp; depth_map) {
+
+    <span class="cm">// Sample median depth on the left third of the frame.
+    // Median is used (not mean) to reject outlier pixels (e.g. corridor
+    // entrance reflection artifacts, dust particles close to camera).</span>
+    <span class="ty">float</span> left_dist  = <span class="fn">median_depth_in_region</span>(depth_map, LEFT_COLUMN_ROI);
+
+    <span class="cm">// Sample median depth on the right third of the frame.</span>
+    <span class="ty">float</span> right_dist = <span class="fn">median_depth_in_region</span>(depth_map, RIGHT_COLUMN_ROI);
+
+    <span class="cm">// lateral_err > 0  means left wall is farther → drone drifted toward RIGHT wall
+    // lateral_err < 0  means right wall is farther → drone drifted toward LEFT wall</span>
+    <span class="ty">float</span> lateral_err = left_dist <span class="op">-</span> right_dist;
+
+    <span class="cm">// Proportional controller: gain -0.3 converts metres of asymmetry
+    // into m/s lateral velocity.
+    // Example: 0.5m asymmetry → 0.15 m/s correction ← gentle, stable.
+    // The negative sign: if we drifted right (err > 0), push left (vy < 0).</span>
+    <span class="ty">float</span> vy_cmd = <span class="op">-</span><span class="num">0.3f</span> <span class="op">*</span> lateral_err;
+
+    <span class="cm">// Asymmetry under 0.3m = close enough to centre, no correction needed.
+    // Avoids oscillation from correcting tiny random noise.</span>
+    <span class="kw">if</span> (std::<span class="fn">fabsf</span>(lateral_err) < <span class="num">0.3f</span>)
+        vy_cmd = <span class="num">0.0f</span>;
+
+    <span class="cm">// Send velocity setpoint to Pixhawk via MAVLink.
+    // FWD_SPEED = 2.0 m/s ideal (hard cap 5.0 m/s enforced at FC level).</span>
+    mavsdk.<span class="fn">send_velocity</span>(FWD_SPEED, vy_cmd, <span class="num">0.0f</span>);
+}</pre>
+
+  <div class="qa">
+    <div class="qa-q">What if one wall is missing — e.g. an open section of the corridor?</div>
+    <div class="qa-a">The depth map returns maximum range (around 15m for OAK-D Lite) for open space. If one side reads max-range, the asymmetry is large and the drone corrects toward the side that does have a wall. In practice this means the drone will hug the existing wall gently, which is the correct behaviour in an open section.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s3">
+  <div class="section-head"><span class="section-num">TOPIC 03</span><h2>Obstacle Avoidance — Return Lap</h2></div>
+  <hr class="rule">
+
+  <p>The return lap activates the full obstacle pipeline: <strong>A-star path planning on a 2D occupancy grid</strong> derived from the Myriad X depth map, updated every 30ms. To keep the TX2 NX within its cycle budget, the computationally heavy map-fusion and A-star graph search are offloaded to the ground station over the 3DR backup telemetry link.</p>
+
+<pre><span class="cm">/**
+ * RETURN LAP — Obstacle-aware navigation
+ *
+ * Full pipeline (vs forward lap which uses wall-follow only):
+ *   1. Myriad X generates depth-segmented image each frame
+ *   2. TX2 NX streams raw segments to GCS via 3DR MAVLink data msgs
+ *   3. GCS fuses segments into 2D occupancy grid (SLAM / NVBlox)
+ *   4. GCS runs A-star on the grid → optimal waypoint sequence
+ *   5. GCS sends solved waypoints back to TX2 NX over 3DR link
+ *   6. TX2 NX executes waypoints, checking for updates every 30ms
+ *
+ * Why offboard?
+ *   Visual SLAM fusion + A-star together = 15–25ms on TX2 NX.
+ *   Total FSM cycle = 30ms → leaves only 5ms for everything else.
+ *   Offloading frees the onboard loop to focus on safety checks,
+ *   MAVLink dispatch, and actuator commands.
+ *
+ * Safety zones (computed entirely onboard every frame, NOT offloaded):
+ *   CLEAR  = depth > 5.0m → cruise at 2 m/s
+ *   CAUTION = depth 2–5m  → slow to 1 m/s
+ *   DANGER = depth < 2m OR red pixel present → full stop
+ *
+ * The safety zone check is onboard and fast (pure lookup per pixel).
+ * It overrides the GCS-solved waypoint if a sudden obstacle appears.
+ */</span>
+
+<span class="cm">// Safety zone enum — evaluated every 30ms</span>
+<span class="kw">enum</span> <span class="ty">SafeZone</span> { CLEAR, CAUTION, DANGER };
+
+<span class="cm">/**
+ * classify_zone()
+ * Called once per FSM cycle (30ms) with the minimum forward depth
+ * reading and a flag indicating whether any red pixel is present
+ * in that region.
+ *
+ * Red pixel takes priority: even if the physical depth is clear,
+ * a red zone marking must be treated as DANGER (we cannot fly over it).
+ */</span>
+<span class="ty">SafeZone</span> <span class="fn">classify_zone</span>(<span class="ty">float</span> depth_m, <span class="ty">bool</span> red_pixel_present) {
+    <span class="kw">if</span> (red_pixel_present)      <span class="kw">return</span> DANGER;   <span class="cm">// red zone → never enter</span>
+    <span class="kw">if</span> (depth_m < <span class="num">2.0f</span>)        <span class="kw">return</span> DANGER;   <span class="cm">// wall/obstacle very close</span>
+    <span class="kw">if</span> (depth_m < <span class="num">5.0f</span>)        <span class="kw">return</span> CAUTION;  <span class="cm">// obstacle approaching</span>
+    <span class="kw">return</span> CLEAR;
+}
+
+<span class="cm">// Speed cap per safety zone</span>
+<span class="ty">float</span> <span class="fn">get_safe_speed</span>(<span class="ty">SafeZone</span> z) {
+    <span class="kw">if</span> (z == DANGER)   <span class="kw">return</span> <span class="num">0.0f</span>;   <span class="cm">// full stop</span>
+    <span class="kw">if</span> (z == CAUTION)  <span class="kw">return</span> <span class="num">1.0f</span>;   <span class="cm">// 1 m/s</span>
+    <span class="kw">return</span> MAX_CRUISE_SPEED;           <span class="cm">// 2.0 m/s</span>
+}
+
+<span class="cm">// Main return-lap loop</span>
+<span class="kw">while</span> (fsm_state == RETURN_FLIGHT) {
+    <span class="ty">SafeZone</span> z = <span class="fn">classify_zone</span>(
+        myriad_x.<span class="fn">get_min_forward_depth</span>(),
+        myriad_x.<span class="fn">red_pixel_in_forward_region</span>()
+    );
+    <span class="ty">float</span> speed = <span class="fn">get_safe_speed</span>(z);
+
+    <span class="cm">// Get next waypoint from GCS-solved grid (received over 3DR link).
+    // If grid is stale (> 200ms), re-request from GCS.</span>
+    <span class="ty">Waypoint</span> wp = gcs_grid.<span class="fn">next_waypoint</span>();
+
+    mavsdk.<span class="fn">send_velocity</span>(speed * wp.fwd_component,
+                          speed * wp.lat_component, <span class="num">0.0f</span>);
+}</pre>
+
+  <div class="qa">
+    <div class="qa-q">What is A-star and why did you choose it?</div>
+    <div class="qa-a">A-star is a graph search algorithm that finds the shortest path through a grid while avoiding marked obstacles. We chose it because it is <strong>deterministic, computationally predictable</strong>, and works well on 2D occupancy grids. Unlike a neural network-based planner, A-star always finds the optimal path if one exists, and its worst-case compute time is bounded.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">What happens if the 3DR telemetry link drops mid-return-flight?</div>
+    <div class="qa-a">The TX2 NX has the last-received occupancy grid cached. It continues executing that path while marking the grid as stale. Simultaneously, the safety zone check (CLEAR/CAUTION/DANGER) remains fully onboard — the drone can still slow and stop based on live depth data even with no GCS connection. If the grid is stale beyond 500ms, the drone slows to 0.5 m/s and wall-follows (same as forward lap) until the link recovers.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s4">
+  <div class="section-head"><span class="section-num">TOPIC 04</span><h2>Red Zone Avoidance</h2></div>
+  <hr class="rule">
+
+  <p>Red zone detection uses HSV colour segmentation with <strong>two hue bands</strong> (0–10° and 170–180°) because red wraps around the HSV colour wheel and appears near both 0° and 180° depending on lighting.</p>
+
+<pre><span class="cm">/**
+ * RED ZONE DETECTION — HSV Colour Segmentation
+ *
+ * Why two hue bands?
+ *   In the HSV colour model, red straddles the 0°/360° boundary.
+ *   Under one lighting condition, a red object reads as hue ~5°.
+ *   Under another (e.g. warmer sunlight), the same object reads as ~175°.
+ *   If we only check hue 0–10°, we miss ~50% of real-world red detections.
+ *   Solution: check BOTH ends of the hue spectrum and combine with OR.
+ *
+ * Why these saturation/value thresholds?
+ *   Saturation >= 120: ensures we don't flag desaturated (pinkish/orange) surfaces.
+ *   Value >= 80: ensures we don't flag dark shadow areas as red.
+ *   These values were tuned for outdoor daylight conditions.
+ *
+ * Runs on: Myriad X VPU inside the OAK-D Lite (fast, dedicated colour pipeline)
+ * Output: red_mask — binary image where 255 = red pixel confirmed
+ */</span>
+
+<span class="cm">// Convert frame to HSV colour space first.
+// CLAHE brightness correction must be applied BEFORE this step
+// (see Auto Brightness section) to ensure consistent saturation values
+// across the bright delivery zone and shaded corridor.</span>
+cv::Mat hsv;
+cv::<span class="fn">cvtColor</span>(frame_bgr, hsv, cv::COLOR_BGR2HSV);
+
+<span class="cm">// Band 1: Classic red (hue near 0°)
+// Lower: H=0,  S=120, V=80   Upper: H=10, S=255, V=255</span>
+cv::Mat mask1;
+cv::<span class="fn">inRange</span>(hsv, cv::Scalar(<span class="num">0</span>, <span class="num">120</span>, <span class="num">80</span>),
+                cv::Scalar(<span class="num">10</span>, <span class="num">255</span>, <span class="num">255</span>), mask1);
+
+<span class="cm">// Band 2: Wrapped red (hue near 180°)
+// Lower: H=170, S=120, V=80  Upper: H=180, S=255, V=255</span>
+cv::Mat mask2;
+cv::<span class="fn">inRange</span>(hsv, cv::Scalar(<span class="num">170</span>, <span class="num">120</span>, <span class="num">80</span>),
+                cv::Scalar(<span class="num">180</span>, <span class="num">255</span>, <span class="num">255</span>), mask2);
+
+<span class="cm">// Combine: a pixel is RED if it matches EITHER band.</span>
+cv::Mat red_mask;
+cv::<span class="fn">bitwise_or</span>(mask1, mask2, red_mask);
+
+<span class="cm">// Integrate with depth safety map:
+// Red pixel at position (y,x) → classify that depth cell as DANGER
+// regardless of what the physical depth reading says there.
+// This prevents the drone from trying to fly "through" a red zone
+// just because it has a clear depth reading (e.g. an open floor marking).</span>
+<span class="kw">for</span> (<span class="ty">int</span> y = <span class="num">0</span>; y < depth_map.rows; y++) {
+    <span class="kw">for</span> (<span class="ty">int</span> x = <span class="num">0</span>; x < depth_map.cols; x++) {
+        <span class="ty">bool</span> is_red = (red_mask.<span class="fn">at</span>&lt;<span class="ty">uint8_t</span>&gt;(y, x) > <span class="num">0</span>);
+        safety_map[y][x] = <span class="fn">classify_zone</span>(depth_map.<span class="fn">at</span>&lt;<span class="ty">float</span>&gt;(y, x), is_red);
+    }
+}</pre>
+
+  <div class="qa">
+    <div class="qa-q">What if the lighting changes colour temperature mid-flight?</div>
+    <div class="qa-a">This is exactly why we use CLAHE auto brightness correction before the HSV mask runs. CLAHE adjusts local contrast without touching hue, so a red marker still reads as red even if the overall frame gets brighter or darker as the drone moves from shade into sunlight. Additionally, the dual-band detection means we catch red across both ends of the hue spectrum.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">How close can the drone get to the red zone before it stops?</div>
+    <div class="qa-a">The safety zone system triggers DANGER as soon as a red pixel appears in the forward region of the depth map. At 2 m/s cruise speed and a 30ms FSM cycle, the drone can stop within roughly 6–10cm of the red zone boundary (reaction distance = speed × cycle time). The physical depth check at 2m is an additional safety buffer for any non-red physical obstacles near the zone edge.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s5">
+  <div class="section-head"><span class="section-num">TOPIC 05</span><h2>Delivery Zone QR Identification</h2></div>
+  <hr class="rule">
+
+  <p>At 10m altitude, the drone scans for all QR codes in the delivery zone, matches against <code>target_id</code>, rejects any near the red zone, computes the 3D world position, and confirms it over 3 consecutive frames before descending.</p>
+
+<pre><span class="cm">/**
+ * DELIVERY ZONE QR IDENTIFICATION — 5-step process
+ *
+ * Context:
+ *   The drone is hovering at 10m altitude in the 40×30m delivery zone.
+ *   OAK-D Lite is tilted 45°. At 10m, it sees the floor ~10m ahead
+ *   (because tan(45°) × 10m = 10m horizontal offset).
+ *   The drone performs a slow lateral sweep at under 1 m/s to bring
+ *   multiple QR codes into the camera's field of view.
+ *
+ * Goal: find the ONE QR code that:
+ *   (a) decodes to a string matching target_id (from the start QR gate)
+ *   (b) is NOT inside or within 1.5m of the red zone
+ *   (c) is confirmed at the same 3D position across 3 consecutive frames
+ */</span>
+
+<span class="ty">int</span>     confirm_count = <span class="num">0</span>;
+<span class="ty">Vector3</span> qr_3d_pos;          <span class="cm">// 3D world-frame position of the target QR</span>
+<span class="ty">Vector3</span> last_position;
+
+<span class="kw">while</span> (fsm_state == SCAN_DELIVERY_ZONE) {
+
+    <span class="cm">// Step 1 + 2: Myriad X finds all QR candidate regions in the RGB frame
+    // and returns each as a cropped greyscale ROI.</span>
+    <span class="ty">vector</span>&lt;QRCrop&gt; crops = myriad_x.<span class="fn">get_qr_regions</span>();
+
+    <span class="kw">for</span> (<span class="kw">auto</span>&amp; crop : crops) {
+
+        <span class="cm">// Step 3a: Decode the crop with ZBar.</span>
+        <span class="ty">string</span> decoded = zbar.<span class="fn">scan</span>(crop.image);
+        <span class="kw">if</span> (decoded != target_id) <span class="kw">continue</span>;   <span class="cm">// Not our target — skip.</span>
+
+        <span class="cm">// Step 3b: Red zone rejection.
+        // Check if the bounding box centroid of this QR is within 1.5m
+        // of any red pixel cluster in the current frame.
+        // If yes, skip this QR even if it decodes correctly —
+        // we cannot land the payload in or near the red zone.</span>
+        <span class="kw">if</span> (<span class="fn">in_red_zone</span>(crop.bbox, red_mask, <span class="num">1.5f</span>)) <span class="kw">continue</span>;
+
+        <span class="cm">// Step 4: 3D position via pinhole projection.
+        //
+        // We know:
+        //   px, py = pixel coordinates of QR centroid
+        //   depth  = stereo depth at that pixel (from Myriad X)
+        //   K      = camera intrinsic matrix (focal length fx, fy; principal point cx, cy)
+        //   T_world = drone pose from GPS + IMU (position + orientation)
+        //
+        // Formula (pinhole model):
+        //   X_cam = (px - cx) * depth / fx     ← horizontal world offset
+        //   Y_cam = (py - cy) * depth / fy     ← vertical world offset
+        //   Z_cam = depth                      ← distance along camera axis
+        //
+        // Then rotate by drone orientation and translate by GPS position
+        // to get the QR's absolute world-frame coordinates.</span>
+        <span class="ty">float</span> depth = depth_map.<span class="fn">at</span>(crop.centroid_y, crop.centroid_x);
+        <span class="ty">Vector3</span> pos = <span class="fn">pinhole_to_world</span>(crop.centroid, depth, K, T_world);
+
+        <span class="cm">// Step 5: 3-frame confirmation.
+        // Require the SAME position (within 0.3m tolerance) across
+        // 3 consecutive frames before committing to fly there.
+        // This rejects: lens reflections, partial QR codes, sensor noise.</span>
+        <span class="kw">if</span> (<span class="fn">distance</span>(pos, last_position) < <span class="num">0.3f</span>) {
+            confirm_count++;
+            <span class="kw">if</span> (confirm_count >= <span class="num">3</span>) {
+                qr_3d_pos = pos;        <span class="cm">// LOCKED. Start descent.</span>
+                <span class="fn">transition_to</span>(PHASE_DELIVERY);
+                <span class="kw">break</span>;
+            }
+        } <span class="kw">else</span> {
+            confirm_count = <span class="num">1</span>;         <span class="cm">// Reset: position jumped, restart count.</span>
+            last_position = pos;
+        }
+    }
+}</pre>
+
+  <div class="qa">
+    <div class="qa-q">What if two QR codes decode to the same target_id?</div>
+    <div class="qa-a">The rulebook guarantees each team receives a unique target. In practice, if somehow two QRs decoded the same string, we would pick the first one that also passes the red zone check and 3-frame confirmation. The physical placement of multiple identical QRs in a competition zone is practically impossible — they are printed uniquely per team.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">How accurate is the 3D position from pinhole projection?</div>
+    <div class="qa-a">At 10m altitude, the stereo depth accuracy of the OAK-D Lite is approximately ±0.3–0.5m for a well-lit flat target. Our zone alignment PID then brings the drone to within 0.25m of the QR centroid using live visual feedback from 5m altitude, so the initial 10m estimate only needs to be accurate enough to fly to the right general location — the fine alignment is done separately during the descent.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s6">
+  <div class="section-head"><span class="section-num">TOPIC 06</span><h2>Autonomous Payload Deployment — ADRC Winch</h2></div>
+  <hr class="rule">
+
+  <div class="alert a-purple">
+    <strong>ADRC explained simply for judges:</strong>
+    Traditional winch control would need a full pendulum physics model (cable length, mass, air drag). We don't have that — cable length changes with altitude and the payload mass isn't precisely calibrated. Instead, our Extended State Observer watches the IMU attitude rate every 10ms and treats any swing it detects as a "disturbance to cancel" — without ever needing to know the pendulum parameters. It estimates the disturbance, applies a counterforce, and damps the oscillation in real time.
+  </div>
+
+<pre><span class="cm">/**
+ * ADRC WINCH CONTROL — Active Disturbance Rejection
+ *
+ * The Problem:
+ *   When a payload hangs on a Kevlar cable at 5m altitude, it acts like
+ *   a pendulum. Any horizontal wind, lateral drone movement, or vibration
+ *   causes the payload to swing. If the swing grows, the cable can tangle,
+ *   the payload drifts off-target, or the drone is destabilised.
+ *
+ * Classical solution (NOT what we use):
+ *   Model the cable as a physical pendulum: derive equations of motion,
+ *   know the exact cable length (L), payload mass (m), and drag coefficient.
+ *   Problem: L changes with deployment height; m is uncertain; drag is unknown.
+ *
+ * Our solution — ADRC (Active Disturbance Rejection Control):
+ *   The Extended State Observer (ESO) reads the IMU attitude rates at 100 Hz.
+ *   It treats the pendulum swing as an "external disturbance" acting on the
+ *   drone's attitude. It ESTIMATES the disturbance magnitude from the rate
+ *   signals WITHOUT needing any physical model of the cable or payload.
+ *   When the estimated disturbance exceeds the threshold, it:
+ *     (a) Brakes the winch motor (stops cable from adding more energy to the swing)
+ *     (b) Sends a micro attitude correction to the Pixhawk opposing the swing
+ *
+ * This works regardless of cable length, payload weight, or wind conditions.
+ */</span>
+
+<span class="cm">// ── Constants (tuned for our specific N20 + Kevlar + 100g payload) ──</span>
+<span class="kw">const float</span> WINCH_LOWER_DUTY    = <span class="num">0.30f</span>;  <span class="cm">// 30% PWM on DRV8838 H-bridge for lowering</span>
+<span class="kw">const float</span> WINCH_RETRACT_DUTY  = <span class="num">0.20f</span>;  <span class="cm">// 20% PWM for reel-back (less force needed)</span>
+<span class="kw">const int</span>   RAMP_STEPS           = <span class="num">10</span>;    <span class="cm">// Number of incremental duty steps in ramp</span>
+<span class="kw">const int</span>   RAMP_INTERVAL_MS     = <span class="num">50</span>;    <span class="cm">// Milliseconds between each ramp step</span>
+<span class="kw">const float</span> WOBBLE_LIMIT_DPS     = <span class="num">8.0f</span>;  <span class="cm">// IMU rate threshold to trigger brake</span>
+<span class="kw">const float</span> GROUND_CONTACT_MA    = <span class="num">180.0f</span>;<span class="cm">// DRV8838 current spike = N20 stall = ground</span>
+
+<span class="cm">/**
+ * Phase A: Pre-lower stabilisation gate.
+ * Drone must be stable before we let the cable out.
+ * If GPS is drifting (wind) or attitude is oscillating, lowering would
+ * create a large pendulum swing immediately.
+ */</span>
+<span class="fn">wait_for_stable_hover</span>(
+    <span class="cm">/*gps_drift_limit=*/</span><span class="num">0.5f</span>,   <span class="cm">// m/s horizontal GPS velocity</span>
+    <span class="cm">/*rate_limit_dps=*/</span><span class="num">3.0f</span>    <span class="cm">// max roll/pitch rate from IMU</span>
+);
+
+<span class="cm">/**
+ * Phase B: Soft ramp lower — never step the motor on instantly.
+ * A sudden 30% duty start would jerk the cable and immediately excite
+ * the pendulum. We ramp over 500ms (10 × 50ms) for a gentle start.
+ * Also protects the cable attachment point from shock loads and prevents
+ * cable bunching on the LW-PLA spool at high-speed starts.
+ */</span>
+<span class="fn">ramp_drv8838</span>(from=<span class="num">0.0f</span>, to=WINCH_LOWER_DUTY, steps=RAMP_STEPS, interval_ms=RAMP_INTERVAL_MS);
+
+<span class="cm">// Phase C: Active swing damping loop — runs while cable is lowering.</span>
+<span class="kw">while</span> (!ground_contact_detected) {
+
+    <span class="ty">float</span> roll_rate  = imu.<span class="fn">roll_rate_dps</span>();
+    <span class="ty">float</span> pitch_rate = imu.<span class="fn">pitch_rate_dps</span>();
+
+    <span class="kw">if</span> (std::<span class="fn">fabsf</span>(roll_rate)  > WOBBLE_LIMIT_DPS <span class="op">||</span>
+        std::<span class="fn">fabsf</span>(pitch_rate) > WOBBLE_LIMIT_DPS) {
+
+        <span class="cm">// ADRC response: stop adding energy to the swing.</span>
+        drv8838.<span class="fn">brake</span>();                     <span class="cm">// Hold cable still for 300ms</span>
+        std::this_thread::<span class="fn">sleep_for</span>(300ms);
+        drv8838.<span class="fn">resume</span>(WINCH_LOWER_DUTY);   <span class="cm">// Resume lowering gently</span>
+
+        <span class="cm">// Also send micro attitude correction to Pixhawk opposing the swing.
+        // This physically counters the pendulum reaction force on the drone body.
+        // Vector is computed from ESO's disturbance estimate direction.</span>
+        <span class="ty">AttitudeTarget</span> correction = eso.<span class="fn">compute_anti_swing_correction</span>();
+        mavsdk.<span class="fn">set_attitude_target</span>(correction);
+    }
+
+    <span class="cm">// Phase D: Ground contact detection.
+    // N20 gear motor physically stalls when payload touches ground.
+    // DRV8838 H-bridge shows current spike above GROUND_CONTACT_MA.
+    // No separate sensor needed — current sensing is built into DRV8838.</span>
+    <span class="kw">if</span> (drv8838.<span class="fn">current_ma</span>() > GROUND_CONTACT_MA) {
+        drv8838.<span class="fn">brake</span>();
+        ground_contact_detected = <span class="kw">true</span>;
+    }
+}
+
+<span class="cm">// Phase E: Payload release via servo-actuated hook.
+// MAV_CMD_DO_SET_SERVO sends a PWM command to Pixhawk auxiliary servo output.
+// Pixhawk routes this to the release servo via its auxiliary PWM channel.
+// Wait 500ms, then confirm the current has dropped (confirming load is gone).</span>
+mavsdk.<span class="fn">send_command</span>(MAV_CMD_DO_SET_SERVO, servo_channel, RELEASE_PWM);
+std::this_thread::<span class="fn">sleep_for</span>(500ms);
+<span class="fn">confirm_current_drop</span>(drv8838);   <span class="cm">// Current back to idle = payload detached.</span>
+
+<span class="cm">// Phase F: Soft ramp reel-back.
+// Same ramp logic as lowering, but at 20% duty in reverse.
+// Without payload, the free cable swings MORE (no damping mass),
+// so the wobble guard remains active throughout reel-back.</span>
+<span class="fn">ramp_drv8838</span>(from=<span class="num">0.0f</span>, to=<span class="op">-</span>WINCH_RETRACT_DUTY, steps=RAMP_STEPS, interval_ms=RAMP_INTERVAL_MS);
+<span class="cm">// ... (same swing-damp loop as Phase C, active during reel-back)</span>
+
+<span class="cm">// Phase G: Spool home detection.
+// Hall effect sensor on spool axle fires when the spool returns to home position.
+// Alternative: N20 back-EMF drops when motor can no longer turn (spool bottomed out).
+// Either signal → brake and disarm winch.</span>
+<span class="fn">wait_for_spool_home</span>(hall_sensor, back_emf_monitor);
+drv8838.<span class="fn">brake</span>();
+winch_armed = <span class="kw">false</span>;</pre>
+
+  <div class="qa">
+    <div class="qa-q">What is the DRV8838? Can it handle the current?</div>
+    <div class="qa-a">The DRV8838 is a single H-bridge motor driver IC from Pololu. It can handle up to 1.8A peak. The N20 gear motor draws around 50–80mA at normal running speed and spikes to ~180mA at stall — well within the DRV8838's rating. The H-bridge also has built-in current sensing which is how we detect the ground-contact stall without a separate sensor.</div>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">What if the payload gets stuck and never reaches the ground?</div>
+    <div class="qa-a">There's a maximum lower time timeout. If the ground-contact current threshold hasn't been detected after (cable length / lowering speed + safety margin) seconds, the FSM triggers a brake, logs the anomaly, and either attempts a reel-back or initiates RTL depending on the severity. The 3DR backup telemetry also allows the ground operator to command a manual override.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s7">
+  <div class="section-head"><span class="section-num">TOPIC 07</span><h2>CG Compensation After Payload Drop</h2></div>
+  <hr class="rule">
+
+  <p>When the 100g payload releases, total mass drops by ~5.4% and the centre of gravity shifts. Without correction, the drone would suddenly climb. Three-step compensation: throttle feed-forward reduction, attitude bias injection, then stability gate.</p>
+
+<pre><span class="cm">/**
+ * CG COMPENSATION — three steps immediately after payload release
+ *
+ * What happens at the moment of release:
+ *   1. Total mass drops from ~1850g to ~1750g (~5.4% reduction)
+ *   2. The throttle PID was tuned with the payload attached.
+ *      At the same throttle command, the lighter drone climbs.
+ *   3. CG shifts slightly upward (and possibly laterally if the
+ *      payload was not perfectly centred under the frame).
+ *
+ * We handle this in three steps:
+ *   Step 1: Immediately reduce throttle feed-forward by the mass ratio.
+ *   Step 2: Inject a pre-computed attitude bias via MAVLink for 2 seconds
+ *           to counteract the CG shift transient.
+ *   Step 3: Wait at a stability gate before any dynamic manoeuvres.
+ */</span>
+
+<span class="cm">// Step 1: Throttle feed-forward reduction.
+// The feed-forward is the "baseline" throttle that balances gravity
+// before the PID error terms kick in. It scales linearly with mass.</span>
+<span class="kw">const float</span> PAYLOAD_MASS_KG = <span class="num">0.100f</span>;
+<span class="kw">const float</span> DRONE_MASS_KG   = <span class="num">1.850f</span>;   <span class="cm">// total AUW with payload</span>
+<span class="kw">const float</span> mass_ratio      = PAYLOAD_MASS_KG / DRONE_MASS_KG;  <span class="cm">// ~0.054 = 5.4%</span>
+
+<span class="ty">float</span> new_throttle_ff = current_throttle_ff * (<span class="num">1.0f</span> - mass_ratio);
+<span class="fn">send_throttle_feedforward</span>(new_throttle_ff);   <span class="cm">// Sent via MAVLink immediately.</span>
+
+<span class="cm">// Step 2: Attitude bias injection for 2 seconds.
+// cg_pitch_bias_rad and cg_roll_bias_rad are calculated from the
+// known mechanical CG offset (measured during assembly) and
+// stored as pre-computed constants before the flight.
+// The SET_ATTITUDE_TARGET command tells the FC "hold this attitude"
+// which counteracts the transient disturbance as the PID re-converges.</span>
+<span class="ty">AttitudeTarget</span> cg_correction;
+cg_correction.pitch = cg_pitch_bias_rad;   <span class="cm">// pre-computed from assembly measurement</span>
+cg_correction.roll  = cg_roll_bias_rad;
+mavsdk.<span class="fn">set_attitude_target</span>(cg_correction);
+std::this_thread::<span class="fn">sleep_for</span>(2000ms);   <span class="cm">// Hold for 2s then Pixhawk PID takes over.</span>
+
+<span class="cm">// Step 3: Stability gate — must pass BEFORE any dynamic manoeuvres.
+// This confirms the Pixhawk EKF3 and attitude PID have re-converged
+// to the new lighter equilibrium. Prevents the return flight starting
+// while the drone is still oscillating from the mass change.</span>
+<span class="kw">auto</span> <span class="fn">wait_for_cg_settle</span> = [&amp;]() {
+    <span class="kw">auto</span> t_start = <span class="fn">now</span>();
+    <span class="kw">while</span> (<span class="fn">elapsed</span>(t_start) < <span class="num">5.0f</span> <span class="cm">/* 5s timeout */</span>) {
+        <span class="ty">float</span> roll_rate  = std::<span class="fn">fabsf</span>(telem.<span class="fn">roll_rate_dps</span>());
+        <span class="ty">float</span> pitch_rate = std::<span class="fn">fabsf</span>(telem.<span class="fn">pitch_rate_dps</span>());
+        <span class="ty">float</span> gps_speed  = std::<span class="fn">hypotf</span>(telem.<span class="fn">vel_north</span>(), telem.<span class="fn">vel_east</span>());
+
+        <span class="kw">if</span> (roll_rate < <span class="num">3.0f</span> && pitch_rate < <span class="num">3.0f</span> && gps_speed < <span class="num">0.5f</span>)
+            <span class="kw">return</span> STABLE;   <span class="cm">// Gate passed — safe to start return flight.</span>
+
+        std::this_thread::<span class="fn">sleep_for</span>(50ms);
+    }
+    <span class="kw">return</span> TIMEOUT;   <span class="cm">// 5s elapsed — proceed anyway, log the event.</span>
+};</pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s8">
+  <div class="section-head"><span class="section-num">TOPIC 08</span><h2>Auto Brightness Normalisation (CLAHE)</h2></div>
+  <hr class="rule">
+
+  <p>The drone transitions from a shaded corridor to open sunlight. Without correction, the YOLO model and HSV red/green masks fail on over-exposed frames. CLAHE is applied to the L-channel of LAB colour space — correcting brightness locally without touching hue.</p>
+
+<pre><span class="cm">/**
+ * AUTO BRIGHTNESS NORMALISATION — CLAHE on LAB L-channel
+ *
+ * Problem: OAK-D Lite transitions from dark corridor to bright sunlight.
+ *   In shade: frame is underexposed → low contrast → YOLO misses detections.
+ *   In sun:   frame is overexposed  → colours wash out → HSV mask fails.
+ *
+ * Why not just use auto-exposure on the camera?
+ *   Camera AE takes ~500ms to settle after large light changes.
+ *   We can't wait 500ms — that's 15 FSM cycles. We need every frame usable.
+ *
+ * Why CLAHE on LAB L-channel?
+ *   LAB colour space separates Lightness (L) from colour (A = green-red axis,
+ *   B = blue-yellow axis). CLAHE on L adjusts local brightness/contrast
+ *   WITHOUT touching the A or B channels → Hue is preserved for HSV masks.
+ *
+ *   If we applied CLAHE in BGR or HSV space directly, the colour information
+ *   would change, breaking our carefully tuned HSV red/green thresholds.
+ *
+ * Runs on TX2 NX CUDA BEFORE frame enters Myriad X inference queue.
+ */</span>
+cv::Mat <span class="fn">normalize_frame</span>(<span class="kw">const</span> cv::Mat&amp; bgr) {
+
+    <span class="cm">// Convert to LAB colour space.</span>
+    cv::Mat lab;
+    cv::<span class="fn">cvtColor</span>(bgr, lab, cv::COLOR_BGR2Lab);
+
+    <span class="cm">// Split into 3 channels: L (lightness), A (green-red), B (blue-yellow).</span>
+    std::vector&lt;cv::Mat&gt; channels;
+    cv::<span class="fn">split</span>(lab, channels);
+
+    <span class="cm">// Apply CLAHE only to L channel.
+    // clipLimit=2.0: limits contrast amplification to prevent noise explosion.
+    // tileGridSize=(8,8): local neighbourhood for adaptive histogram equalisation.</span>
+    <span class="ty">auto</span> clahe = cv::<span class="fn">createCLAHE</span>(<span class="cm">/*clipLimit=*/</span><span class="num">2.0</span>, cv::<span class="fn">Size</span>(<span class="num">8</span>, <span class="num">8</span>));
+    clahe-&gt;<span class="fn">apply</span>(channels[<span class="num">0</span>], channels[<span class="num">0</span>]);   <span class="cm">// channels[0] = L</span>
+
+    <span class="cm">// Merge back and convert to BGR.</span>
+    cv::Mat result;
+    cv::<span class="fn">merge</span>(channels, lab);
+    cv::<span class="fn">cvtColor</span>(lab, result, cv::COLOR_Lab2BGR);
+
+    <span class="cm">// Auto-saturation: if frame is washed out (mean saturation < 60),
+    // scale the S channel up to restore colour discriminability.
+    // Cap at 1.5× to avoid artificial over-saturation artefacts.</span>
+    cv::Mat hsv;
+    cv::<span class="fn">cvtColor</span>(result, hsv, cv::COLOR_BGR2HSV);
+    cv::<span class="fn">split</span>(hsv, channels);
+    <span class="ty">float</span> mean_sat = cv::<span class="fn">mean</span>(channels[<span class="num">1</span>])[<span class="num">0</span>];
+    <span class="kw">if</span> (mean_sat < <span class="num">60.0f</span>) {
+        <span class="ty">float</span> scale = std::<span class="fn">min</span>(<span class="num">1.5f</span>, <span class="num">80.0f</span> / mean_sat);
+        channels[<span class="num">1</span>].<span class="fn">convertTo</span>(channels[<span class="num">1</span>], <span class="op">-</span><span class="num">1</span>, scale, <span class="num">0</span>);
+    }
+    cv::<span class="fn">merge</span>(channels, hsv);
+    cv::<span class="fn">cvtColor</span>(hsv, result, cv::COLOR_HSV2BGR);
+    <span class="kw">return</span> result;
+}</pre>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s9">
+  <div class="section-head"><span class="section-num">TOPIC 09</span><h2>Emergency Override & RTL</h2></div>
+  <hr class="rule">
+
+  <div class="alert a-red">
+    <strong>Important: the Pixhawk has INDEPENDENT RTL authority.</strong>
+    Even if the TX2 NX crashes or stops responding, the Pixhawk's own failsafes (battery, GPS, geofence, datalink) trigger RTL by themselves. The TX2 NX adds software-level triggers ON TOP of the hardware failsafes — it does not replace them.
+  </div>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Condition</th><th>Trigger</th><th>Action</th><th>Who handles it</th></tr></thead>
+    <tbody>
+      <tr><td>Battery critical</td><td>Below 3.5V/cell (21V for 6S)</td><td>Full throttle, RTL immediately</td><td>Pixhawk FC hardware failsafe</td></tr>
+      <tr><td>GPS signal lost</td><td>No fix for 3 seconds</td><td>Ascend to 15m, hold or RTL</td><td>Pixhawk FC failsafe</td></tr>
+      <tr><td>Geofence breach</td><td>GPS position outside boundary</td><td>Pixhawk corrects back inside</td><td>Pixhawk geo-fence module</td></tr>
+      <tr><td>Primary datalink lost</td><td>No MAVLink heartbeat 1.5s + 3DR still up</td><td>3DR maintains GCS connection</td><td>3DR backup telemetry</td></tr>
+      <tr><td>Both datalinks lost</td><td>No Skydroid T12 AND no 3DR heartbeat</td><td>Pixhawk standalone RTL</td><td>Pixhawk FC failsafe</td></tr>
+      <tr><td>Dual camera failure</td><td>OAK-D + Arducam both streams lost</td><td>Full throttle, RTL immediately</td><td>TX2 NX FSM detects stream loss</td></tr>
+      <tr><td>Manual emergency</td><td>Skydroid T12 channel 5 switched</td><td>Full pilot authority, Stabilize mode</td><td>RC receiver → Pixhawk</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="qa">
+    <div class="qa-q">What is the role of the 3DR radio in safety?</div>
+    <div class="qa-a">The 3DR 915MHz radio is a <strong>secondary independent MAVLink link</strong> between the drone and ground station. Its two roles: (1) offboard compute relay for A-star on the return lap, and (2) payload safety monitoring — the GCS gets real-time winch state, current readings, and release confirmation. If the Skydroid T12 primary RC link drops during delivery, the ground operator can command RTL over the 3DR link without needing the TX2 NX to be responsive.</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<section class="section" id="s10">
+  <div class="section-head"><span class="section-num">TOPIC 10</span><h2>Key Parameters — Quick Reference</h2></div>
+  <hr class="rule">
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Parameter</th><th>Value</th><th>Why this value</th></tr></thead>
+    <tbody>
+      <tr><td>FSM cycle time</td><td>30 ms</td><td>30fps = 33ms frame time; budget chosen to guarantee one full process per frame</td></tr>
+      <tr><td>Takeoff / QR scan altitude</td><td>5 m</td><td>High enough to clear obstacles at start; close enough for reliable QR decode at 4K</td></tr>
+      <tr><td>Corridor navigation altitude</td><td>3 m (10 ft)</td><td>Competition rule: corridor height is 10 feet</td></tr>
+      <tr><td>Delivery zone scan altitude</td><td>10 m</td><td>OAK-D 45° at 10m sees 10m floor ahead — wide enough to sweep the 40m zone</td></tr>
+      <tr><td>Payload drop altitude</td><td>5 m</td><td>Competition rule: must be lowered from 5m minimum</td></tr>
+      <tr><td>Corridor width</td><td>3.5 m</td><td>Course specification — wall-follow centring must achieve 0.25m tolerance</td></tr>
+      <tr><td>Ideal cruise speed</td><td>2 m/s</td><td>Balance of time efficiency and depth sensor processing latency</td></tr>
+      <tr><td>Max forward speed</td><td>5 m/s</td><td>Hard cap at FC level; never exceeded autonomously</td></tr>
+      <tr><td>Throttle cap (normal)</td><td>60%</td><td>Preserves motor life and battery; 40% headroom for emergency response</td></tr>
+      <tr><td>QR fail threshold</td><td>8 frames</td><td>~130ms at 60fps — enough time to rule out a transient viewing angle issue</td></tr>
+      <tr><td>Zone alignment tolerance</td><td>0.25 m</td><td>Close enough for 30cm payload to land on the QR marker reliably</td></tr>
+      <tr><td>Wobble pause threshold</td><td>8 dps</td><td>Tuned: sensitive enough to catch early pendulum oscillation, not spurious noise</td></tr>
+      <tr><td>Ground contact current</td><td>180 mA</td><td>N20 running current ~60mA; 180mA = confirmed stall (3× normal)</td></tr>
+      <tr><td>3-frame QR confirm</td><td>3 frames</td><td>At 30fps = 100ms — rejects reflections and partial detections reliably</td></tr>
+      <tr><td>Stability gate thresholds</td><td>roll/pitch &lt;3 dps, GPS &lt;0.5 m/s</td><td>3 dps is well-settled hover; 0.5 m/s GPS velocity = essentially stationary</td></tr>
+      <tr><td>UART baud rate</td><td>921,600 baud</td><td>Standard MAVLink high-speed; TX2 NX ↔ Pixhawk link</td></tr>
+      <tr><td>Arducam connection</td><td>CSI port</td><td>Confirmed on TX2 NX carrier board — lower latency than USB 2.0</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div><!-- .wrap -->
+
+<div style="background:var(--navy);color:rgba(255,255,255,0.3);text-align:center;padding:1.5rem;font-family:var(--mono);font-size:9px;letter-spacing:0.12em;">
+  AEROTHON 2026 · SECTION 3 SOFTWARE Q&A REFERENCE · INTERNAL TEAM USE · NOT FOR SUBMISSION
+</div>
+</body>
+</html>
