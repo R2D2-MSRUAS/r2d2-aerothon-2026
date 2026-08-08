@@ -1,0 +1,139 @@
+🚁 R2D2 Drone Simulation — Setup Instructions
+
+Important: The current Docker setup has been tested on Linux.
+Windows is not currently supported, so please use a Linux system for running the simulation.
+
+1. Clone the repository
+
+	Clone the repository and enter the project directory:
+
+	git clone git@github.com:R2D2-MSRUAS/r2d2-aerothon-2026.git
+	cd r2d2-aerothon-2026
+
+	Then enter the drone project:
+
+	cd r2d2-drone
+
+	You should now be inside:
+
+	r2d2-aerothon-2026/r2d2-drone
+
+	You can verify with:
+
+	pwd
+	
+2. Check the Docker files
+
+	Inside r2d2-drone, you should see:
+
+	ls
+
+	Expected:
+
+	docker
+	src
+
+	Then check the Docker scripts:
+
+	ls docker
+
+	Expected:
+
+	build.sh
+	Dockerfile
+	run.sh
+	shell.sh
+	stop.sh
+	
+3. Build the Docker image
+
+	Enter the Docker directory:
+
+	cd docker
+
+	Run the existing build script:
+
+	./build.sh
+	⏳ Important
+
+	The first build can take around 4–6 minutes.
+
+	Please wait for the build to finish completely before proceeding.
+
+	Do not manually recreate the Docker commands. The project already includes the required:
+
+	build.sh
+	run.sh
+	shell.sh
+	stop.sh
+
+	scripts.
+
+4. Start the Docker container
+
+	After the build finishes:
+
+	./run.sh
+
+	Then open a shell inside the running container:
+
+	./shell.sh
+
+	At this point you should be inside the ROS 2 Docker environment.
+
+5. Check the Gazebo competition world
+
+	From inside the container, navigate to the simulation package:
+
+	cd /root/ros2_ws/src/r2d2_drone_simulation
+
+	Then check the world:
+
+	ls worlds
+
+	You should see:
+
+	competition_world.sdf
+
+	Launch the competition world:
+	gz sim worlds/competition_world.sdf
+	
+	Verify that the environment contains:
+	Takeoff / landing area
+	Forward corridor
+	Return corridor
+	Delivery area
+	Corridor openings
+	Delivery-area walls
+	Back wall
+	Ceiling
+	Red zone
+	
+	Appropriate colored floor regions
+
+	If Gazebo opens correctly and the competition environment is visible, the simulation environment is working.
+
+6. Stopping the container
+
+	When finished, exit the container:
+
+	exit
+
+	Then return to the Docker directory if necessary:
+
+	cd ~/r2d2-aerothon-2026/r2d2-drone/docker
+
+	Stop the container using the existing script:
+
+	./stop.sh
+	
+⚠️ Important notes
+Linux only for now.
+Make sure Docker is installed and working on your Linux system.
+Use the provided scripts instead of manually constructing Docker commands.
+The first Docker build may take 4–6 minutes.
+Wait until build.sh finishes before running run.sh.
+
+The main Gazebo environment is:
+
+src/r2d2_drone_simulation/worlds/competition_world.sdf
