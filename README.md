@@ -4,12 +4,12 @@ Detect-and-decode pipeline for the SkyScan mission, benchmarked on synthetic
 aerial frames that simulate the OAK-D Lite's actual viewing geometry
 (45° camera tilt, 1–18 m slant range, sun/shade lighting, motion blur).
 
-**TL;DR recommendation: two-mode pipeline.**
+**TL;DR recommendation: two-mode pipeline, with neural auto-zoom for the scan.**
 
 | Mode | When | Method | Range (0.4 m QR) |
 |---|---|---|---|
 | `flight` | moving flight, 30 fps budget | WeChat CNN detect + decode @ 1080p | reliable ≤ 3 m, 75% @ 5 m |
-| `scan` | stationary hover scan | ZBar full-frame @ 4K, WeChat fallback | 100% @ 8 m, ~60% @ 10–12 m |
+| `scan` (auto-zoom) | stationary hover scan | YOLO QR detector on 4K tiles → ROI "zoom" crop → ZBar decode | **100% @ 8–12 m, 75% @ 15 m** |
 
 This mirrors and *validates* the report's adaptive-resolution design: decode
 range is pixel-limited, so the stationary QR scans must run at 4K, and the
@@ -38,6 +38,36 @@ Synthetic benchmark, 12 frames per cell, payload `AT2026RC35_M2_TARGET_07`
 | **ZBar full frame** | **100%** | **100%** | **58%** | **67%** | 0% | 0% | ~380 |
 
 \* Laptop CPU (Apple Silicon). TX2 NX numbers will differ; ratios should hold.
+
+### Auto-zoom (detect far → digital zoom → decode) — the winner
+
+The OAK-D Lite has no optical zoom, but its 13 MP sensor supports the
+software equivalent: stream a downscaled view for speed, and on detection
+crop the QR's region at native sensor resolution (DepthAI ISP/ImageManip
+ROI crop) — recovering the pixels flight mode throws away.
+
+Chain: **QReader's pretrained YOLOv8 QR detector on 2×2 tiles of the 4K
+frame → map boxes back → crop with margin → upscale → ZBar decode.**
+
+| method | 8 m | 10 m | 12 m | 15 m | 18 m | ms/frame* |
+|---|---|---|---|---|---|---|
+| baseline 1080p (flight mode) | 58% | 8% | 0% | 0% | 0% | ~100 |
+| ZBar full-frame @ 4K | 100% | 58% | 67% | 0% | 0% | ~380 |
+| **tiled YOLO detect + zoom + ZBar** | **100%** | **100%** | **100%** | **75%** | 8% | ~500 |
+
+Two facts make this work:
+- **Detection outranges decoding.** The neural detector finds a QR it
+  cannot possibly read; the zoom crop then supplies the missing pixels.
+- **Conversion is 100%**: in every test at 8–15 m, once the detector fired,
+  the zoomed crop decoded. Detection range is now the only limiter — and a
+  custom YOLO trained on `gen_dataset.py` output at higher input size
+  should push it past 15 m.
+
+~0.5 s/frame is too slow for flight but fine for the stationary P6 hover
+scan, and drops further if detection runs as a blob on the Myriad X VPU.
+See `test_autozoom_tiled.py` (also `test_autozoom.py`/`test_autozoom_yolo.py`
+for the negative results: classical detectors fail as far-range spotters,
+and single-shot YOLO at 640 px input goes blind past 8 m).
 
 ### Key findings
 
@@ -74,6 +104,8 @@ physical dimensions:
 | `qr_pipeline.py` | the deliverable: detect+scan on image / dir / video / webcam, `--mode flight\|scan`, `--target <id>` matching, annotated output |
 | `benchmark.py` | 1080p benchmark across 7 distances × 3 lighting × 4 methods → `results.csv` |
 | `test_4k.py` | 4K decode-range test |
+| `test_autozoom_tiled.py` | **the auto-zoom pipeline** (tiled YOLO detect → ROI zoom crop → ZBar) |
+| `test_autozoom.py`, `test_autozoom_yolo.py` | auto-zoom ablations (classical / single-shot detectors) |
 | `synth.py` | synthetic aerial frame generator (OAK-D geometry model) |
 | `gen_dataset.py` | YOLO-format training-set generator for a custom QR *detector* |
 | `wechat_models/` | WeChat QR CNN weights (from opencv_3rdparty) |
