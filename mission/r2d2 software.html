@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroTHON 2026 — Technical Report: Mission 2 SkyScan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:      #0e1117;
+  --page:     #f7f6f1;
+  --rule:     #d8d5cc;
+  --teal:     #007a6e;
+  --teal-lt:  #d0ede9;
+  --navy:     #0d2137;
+  --amber:    #b05e00;
+  --amber-lt: #fdf0e0;
+  --red:      #a33030;
+  --red-lt:   #fce8e8;
+  --purple:   #4a3fa0;
+  --purple-lt:#eeecfb;
+  --mono:     'JetBrains Mono', monospace;
+  --serif:    'DM Serif Display', Georgia, serif;
+  --sans:     'Outfit', system-ui, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans);
+  background: var(--page);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.75;
+  counter-reset: figure;
+}
+.page-wrap { max-width: 960px; margin: 0 auto; padding: 0 2rem 4rem; }
+
+/* COVER */
+.cover {
+  background: var(--navy);
+  color: #fff;
+  padding: 5rem 2rem 4rem;
+  margin-bottom: 3.5rem;
+  position: relative;
+  overflow: hidden;
+}
+.cover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent, transparent 119px, rgba(255,255,255,0.03) 119px, rgba(255,255,255,0.03) 120px);
+  pointer-events: none;
+}
+.cover-inner { max-width: 960px; margin: 0 auto; padding: 0 2rem; position: relative; }
+.cover-label { font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: 0.2em; color: #5de0ce; text-transform: uppercase; margin-bottom: 1.5rem; }
+.cover h1 { font-family: var(--serif); font-size: clamp(1.9rem, 4vw, 3rem); line-height: 1.15; font-weight: 400; color: #fff; max-width: 680px; margin-bottom: 1.5rem; }
+.cover-sub { font-family: var(--sans); font-size: 0.9rem; font-weight: 300; color: rgba(255,255,255,0.55); max-width: 560px; line-height: 1.7; }
+.cover-tags { margin-top: 2.5rem; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.tag { font-family: var(--mono); font-size: 9.5px; background: rgba(93,224,206,0.12); border: 1px solid rgba(93,224,206,0.25); color: #5de0ce; padding: 0.25rem 0.65rem; border-radius: 2px; letter-spacing: 0.1em; }
+.tag.red { background: rgba(255,120,120,0.12); border-color: rgba(255,120,120,0.3); color: #ff9090; }
+
+/* SECTION HEADERS */
+.section-label { font-family: var(--mono); font-size: 9px; letter-spacing: 0.25em; color: var(--teal); text-transform: uppercase; margin-bottom: 0.4rem; display: block; }
+h2 { font-family: var(--serif); font-size: 1.75rem; font-weight: 400; color: var(--navy); margin-bottom: 0.25rem; line-height: 1.2; }
+h3 { font-family: var(--sans); font-size: 1rem; font-weight: 600; color: var(--navy); margin: 1.8rem 0 0.5rem; }
+h4 { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; color: var(--teal); letter-spacing: 0.1em; text-transform: uppercase; margin: 1.2rem 0 0.4rem; }
+
+/* CONTENT */
+.section { margin-bottom: 4rem; }
+.section-rule { border: none; border-top: 1px solid var(--rule); margin: 0 0 2rem; }
+p { margin-bottom: 1rem; color: #2a2a2a; }
+
+/* ALERT BOXES */
+.alert { border-radius: 3px; padding: 1.1rem 1.3rem; margin: 1.5rem 0; font-size: 0.88rem; line-height: 1.65; }
+.alert strong { font-weight: 600; }
+.alert-teal  { background: var(--teal-lt); border-left: 3px solid var(--teal); color: #0a3d38; }
+.alert-amber { background: var(--amber-lt); border-left: 3px solid var(--amber); color: #4a2800; }
+.alert-red   { background: var(--red-lt); border-left: 3px solid var(--red); color: #4a0000; }
+.alert-purple{ background: var(--purple-lt); border-left: 3px solid var(--purple); color: #1e1860; }
+
+/* CODE BLOCKS */
+pre, .code-block { font-family: var(--mono); font-size: 11.5px; background: #0e1117; color: #c9d1d9; border-radius: 4px; padding: 1.2rem 1.4rem; overflow-x: auto; margin: 1rem 0 1.5rem; line-height: 1.85; white-space: pre; }
+.kw  { color: #79c0ff; }
+.fn  { color: #d2a8ff; }
+.st  { color: #a5d6ff; }
+.cm  { color: #6e7681; font-style: italic; }
+.num { color: #ffa657; }
+.op  { color: #ff7b72; }
+code { font-family: var(--mono); font-size: 0.82em; background: rgba(0,0,0,0.07); padding: 0.1em 0.38em; border-radius: 2px; }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+thead tr { background: var(--navy); color: #fff; }
+th { padding: 0.65rem 1rem; text-align: left; font-family: var(--mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+tbody tr:nth-child(even) td { background: #f2f0ea; }
+tbody tr:hover td { background: var(--teal-lt); }
+
+/* DIAGRAMS */
+.diagram-wrap { background: #fff; border: 1px solid var(--rule); border-radius: 4px; padding: 1.5rem; margin: 1.5rem 0; }
+.diagram-wrap svg { width: 100%; height: auto; display: block; }
+.fig-caption { font-family: var(--mono); font-size: 10px; color: #888; margin-top: 0.75rem; letter-spacing: 0.05em; }
+.fig-caption::before { counter-increment: figure; content: "FIG. " counter(figure) "  "; color: var(--teal); font-weight: 600; }
+
+/* GRID */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+.card { background: #fff; border: 1px solid var(--rule); border-radius: 3px; padding: 1rem 1.1rem; }
+.card h4 { margin-top: 0; }
+.card p, .card li { font-size: 0.85rem; color: #444; }
+.card ul { padding-left: 1.1rem; }
+
+/* LISTS */
+ul, ol { padding-left: 1.4rem; margin-bottom: 1rem; }
+li { margin-bottom: 0.3rem; color: #2a2a2a; font-size: 0.93rem; }
+li strong { color: var(--navy); }
+
+/* MATH BLOCK */
+.math { font-family: var(--mono); font-size: 12.5px; background: var(--purple-lt); border: 1px solid rgba(74,63,160,0.2); border-radius: 3px; padding: 0.9rem 1.2rem; margin: 0.75rem 0; color: var(--purple); letter-spacing: 0.03em; }
+
+/* PIPELINE FLOW */
+.pipeline { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 1.2rem 0; font-family: var(--mono); font-size: 11px; }
+.pip-step { background: var(--navy); color: #fff; padding: 0.45rem 0.9rem; border-radius: 2px; white-space: nowrap; }
+.pip-arr { color: var(--teal); padding: 0 0.3rem; font-size: 13px; }
+
+/* PHASE TIMELINE */
+.phase-list { display: grid; grid-template-columns: 2.5rem 1fr; gap: 0 1rem; margin: 1.5rem 0; }
+.phase-num { font-family: var(--mono); font-size: 10px; color: var(--teal); font-weight: 600; padding-top: 0.1rem; text-align: right; }
+.phase-body { border-left: 2px solid var(--rule); padding: 0 0 1.5rem 1rem; }
+.phase-body:last-child { border-left: 2px solid transparent; }
+.phase-title { font-family: var(--sans); font-size: 0.92rem; font-weight: 600; color: var(--navy); margin-bottom: 0.25rem; }
+.phase-meta { font-family: var(--mono); font-size: 10px; color: #888; margin-bottom: 0.3rem; }
+.phase-body p { font-size: 0.88rem; margin-bottom: 0; color: #444; }
+
+/* BADGE */
+.badge { display: inline-block; font-family: var(--mono); font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.5rem; border-radius: 2px; margin-left: 0.4rem; vertical-align: middle; }
+.badge-green { background: #d0ede9; color: #007a6e; }
+.badge-orange { background: #fdf0e0; color: #b05e00; }
+.badge-red { background: #fce8e8; color: #a33030; }
+.badge-corr { background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+
+/* CORRECTION CALLOUT */
+.correction { background: #fff8e1; border: 1px solid #ffc107; border-left: 4px solid #e69b00; border-radius: 3px; padding: 1rem 1.2rem; margin: 1.2rem 0; font-size: 0.88rem; }
+.correction strong { color: #7a4700; }
+
+/* PULLQUOTE */
+.pullquote { font-family: var(--serif); font-size: 1.3rem; font-style: italic; color: var(--navy); border-left: 3px solid var(--teal); padding: 0.5rem 0 0.5rem 1.5rem; margin: 2rem 0; line-height: 1.5; }
+
+/* WINCH STEPS */
+.winch-step { display: flex; gap: 1rem; margin: 1rem 0; }
+.winch-letter { font-family: var(--mono); font-size: 11px; font-weight: 600; color: #fff; background: var(--teal); width: 24px; height: 24px; border-radius: 2px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.15rem; }
+.winch-content h4 { margin-top: 0; margin-bottom: 0.25rem; }
+.winch-content p { font-size: 0.88rem; color: #444; margin-bottom: 0; }
+
+/* TOC */
+.toc { background: #fff; border: 1px solid var(--rule); border-radius: 4px; padding: 1.5rem 1.8rem; margin-bottom: 3rem; }
+.toc h3 { font-size: 0.8rem; margin: 0 0 1rem; color: var(--teal); letter-spacing: 0.15em; font-family: var(--mono); text-transform: uppercase; }
+.toc ol { padding-left: 1.2rem; column-count: 2; column-gap: 2rem; }
+.toc li { font-size: 0.85rem; color: #555; margin-bottom: 0.35rem; }
+.toc a { color: var(--navy); text-decoration: none; }
+.toc a:hover { color: var(--teal); text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .cover { padding: 3rem 1rem 2.5rem; }
+  .cover h1 { font-size: 1.7rem; }
+  .toc ol { column-count: 1; }
+}
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="cover-inner">
+    <p class="cover-label">SAEINDIA AeroTHON 2026 · Track 1 · Rotorcraft Systems Challenge</p>
+    <h1>Mission 2: SkyScan<br>Advanced System Architecture and Algorithmic Design</h1>
+    <p class="cover-sub">Full technical reference covering hardware partitioning, vision pipeline design, autonomous state machine logic, ADRC winch stabilisation, safety mechanisms, CG compensation, offboard computing integration, backup 3DR telemetry, and precision payload delivery for a sub-2 kg competitive UAS platform.</p>
+    <div class="cover-tags">
+      <span class="tag">Jetson TX2 NX</span>
+      <span class="tag">OAK-D Lite + Myriad X</span>
+      <span class="tag">Pixhawk 6X Mini</span>
+      <span class="tag">DepthAI C++ API</span>
+      <span class="tag">MAVSDK C++</span>
+      <span class="tag">Visual SLAM</span>
+      <span class="tag">ADRC Winch</span>
+      <span class="tag">Sub-30 ms Cycle</span>
+      <span class="tag">3DR Backup Telemetry</span>
+      <span class="tag">Offboard Safety Check</span>
+      <span class="tag red">Arducam CSI</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+<div class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s01">System Architecture Overview</a></li>
+    <li><a href="#s02">Mission 2 Sequence</a></li>
+    <li><a href="#s03">Corridor Navigation</a></li>
+    <li><a href="#s04">Delivery Zone Identification</a></li>
+    <li><a href="#s05">ADRC Winch System </a></li>
+    <li><a href="#s06">CG Compensation After Drop</a></li>
+    <li><a href="#s07">Code Safety Mechanisms</a></li>
+    <li><a href="#s08">Camera Pipeline and Resolution</a></li>
+    <li><a href="#s09">Return and Landing</a></li>
+    <li><a href="#s10">Emergency Override and RTL</a></li>
+    <li><a href="#s11">Innovations Summary</a></li>
+    <li><a href="#s12">Key Parameters Reference</a></li>
+  </ol>
+</div>
+
+<section class="section" id="s01">
+  <span class="section-label">Section 01</span>
+  <h2>System Architecture Overview</h2>
+  <hr class="section-rule">
+
+  <p>The system is built around <strong>two processing units</strong> and <strong>one flight controller.</strong> The Myriad X VPU (inside OAK-D Lite) handles all inference. The Jetson TX2 NX runs the FSM and dispatches MAVLink. The Pixhawk 6X Mini owns all flight dynamics — exclusively.</p>
+
+  <div class="diagram-wrap">
+  <svg viewBox="0 0 860 400" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+    <defs>
+      <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arwt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#007a6e" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arwp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#4a3fa0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+      <marker id="arwn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="#0d2137" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+
+    <rect x="18" y="30" width="220" height="310" rx="5" fill="#d0ede9" stroke="#007a6e" stroke-width="1.5"/>
+    <rect x="18" y="30" width="220" height="38" rx="5" fill="#007a6e"/>
+    <rect x="18" y="54" width="220" height="14" fill="#007a6e"/>
+    <text x="128" y="54" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">OAK-D Lite  ·  45° tilt</text>
+
+    <rect x="32" y="82" width="192" height="50" rx="3" fill="#fff" stroke="#007a6e" stroke-width="0.8"/>
+    <text x="128" y="103" text-anchor="middle" font-size="10" font-weight="600" fill="#0a3d38">Stereo Cameras</text>
+    <text x="128" y="120" text-anchor="middle" font-size="8" fill="#007a6e">Global shutter · depth map · 45° tilt</text>
+
+    <rect x="32" y="144" width="192" height="50" rx="3" fill="#fff" stroke="#b05e00" stroke-width="0.8"/>
+    <text x="128" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">RGB Camera</text>
+    <text x="128" y="181" text-anchor="middle" font-size="8" fill="#b05e00">Rolling shutter · colour + QR detection</text>
+
+    <rect x="32" y="206" width="192" height="120" rx="3" fill="#eeecfb" stroke="#4a3fa0" stroke-width="0.8"/>
+    <text x="128" y="228" text-anchor="middle" font-size="10.5" font-weight="600" fill="#1e1860">Myriad X VPU  (4 TOPS)</text>
+    <text x="128" y="246" text-anchor="middle" font-size="7" fill="#4a3fa0">YOLO inference (zones, banner, obstacles)</text>
+    <text x="128" y="262" text-anchor="middle" font-size="7" fill="#4a3fa0">Stereo depth map generation</text>
+    <text x="128" y="278" text-anchor="middle" font-size="7" fill="#4a3fa0">HSV colour segmentation</text>
+    <text x="128" y="294" text-anchor="middle" font-size="7" fill="#4a3fa0">QR region crop (greyscale ROI)</text>
+    <text x="128" y="310" text-anchor="middle" font-size="7" font-weight="750" fill="#4a3fa0">All inference — TX2 NX receives results only</text>
+
+    <line x1="240" y1="195" x2="300" y2="195" stroke="#007a6e" stroke-width="2" marker-end="url(#arwt)"/>
+    <text x="270" y="187" text-anchor="middle" font-size="9" fill="#007a6e">USB 3.0</text>
+
+    <rect x="302" y="30" width="220" height="310" rx="5" fill="#fff8f0" stroke="#b05e00" stroke-width="1.5"/>
+    <rect x="302" y="30" width="220" height="38" rx="5" fill="#b05e00"/>
+    <rect x="302" y="54" width="220" height="14" fill="#b05e00"/>
+    <text x="412" y="54" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Jetson TX2 NX  ·  56 g carrier</text>
+
+    <rect x="316" y="82" width="192" height="50" rx="3" fill="#fff" stroke="#b05e00" stroke-width="0.8"/>
+    <text x="412" y="103" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">Mission FSM</text>
+    <text x="412" y="120" text-anchor="middle" font-size="8" fill="#b05e00">State machine · 30 ms cycle · C++</text>
+
+    <rect x="316" y="144" width="192" height="50" rx="3" fill="#fff" stroke="#b05e00" stroke-width="0.8"/>
+    <text x="412" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">ZBar QR Decode</text>
+    <text x="412" y="181" text-anchor="middle" font-size="8" fill="#b05e00">Small crop only · GStreamer C plugin</text>
+
+    <rect x="316" y="206" width="192" height="50" rx="3" fill="#fff" stroke="#b05e00" stroke-width="0.8"/>
+    <text x="412" y="227" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">CUDA Processing</text>
+    <text x="412" y="243" text-anchor="middle" font-size="8" fill="#b05e00">CLAHE brightness · Visual SLAM / NVBlox</text>
+
+    <rect x="316" y="268" width="192" height="58" rx="3" fill="#fff" stroke="#b05e00" stroke-width="0.8"/>
+    <text x="412" y="289" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">MAVLink Dispatch</text>
+    <text x="412" y="305" text-anchor="middle" font-size="8" fill="#b05e00">MAVSDK C++ · UART 921,600 baud</text>
+    <text x="412" y="319" text-anchor="middle" font-size="8" fill="#b05e00">Winch via MAV_CMD_DO_SET_SERVO</text>
+
+    <line x1="524" y1="195" x2="584" y2="195" stroke="#0d2137" stroke-width="2" marker-end="url(#arwn)"/>
+    <text x="554" y="187" text-anchor="middle" font-size="9" fill="#0d2137">UART</text>
+
+    <rect x="586" y="30" width="256" height="310" rx="5" fill="#e8eef4" stroke="#0d2137" stroke-width="1.5"/>
+    <rect x="586" y="30" width="256" height="38" rx="5" fill="#0d2137"/>
+    <rect x="586" y="54" width="256" height="14" fill="#0d2137"/>
+    <text x="714" y="54" text-anchor="middle" font-size="12" font-weight="600" fill="#fff">Pixhawk 6X Mini  ·  FC</text>
+
+    <rect x="600" y="82" width="228" height="50" rx="3" fill="#fff" stroke="#0d2137" stroke-width="0.8"/>
+    <text x="714" y="103" text-anchor="middle" font-size="10" font-weight="600" fill="#0d2137">EKF3 + Attitude PID</text>
+    <text x="714" y="120" text-anchor="middle" font-size="8" fill="#555">All flight control · motor mixing · GPS loiter</text>
+
+    <rect x="600" y="144" width="228" height="50" rx="3" fill="#fff" stroke="#0d2137" stroke-width="0.8"/>
+    <text x="714" y="165" text-anchor="middle" font-size="10" font-weight="600" fill="#0d2137">Geo-fence + Failsafes</text>
+    <text x="714" y="181" text-anchor="middle" font-size="9" fill="#555">Boundary enforcement · RTL authority</text>
+
+    <rect x="600" y="206" width="228" height="50" rx="3" fill="#fff" stroke="#0d2137" stroke-width="0.8"/>
+    <text x="714" y="227" text-anchor="middle" font-size="10" font-weight="600" fill="#0d2137">Throttle Cap Control</text>
+    <text x="714" y="243" text-anchor="middle" font-size="9" fill="#555">60 % normal · 100 % emergency override</text>
+
+    <rect x="600" y="268" width="228" height="58" rx="3" fill="#fff" stroke="#0d2137" stroke-width="0.8"/>
+    <text x="714" y="289" text-anchor="middle" font-size="10" font-weight="600" fill="#0d2137">Servo / Winch Output</text>
+    <text x="714" y="305" text-anchor="middle" font-size="9" fill="#555">Aux PWM channel · DRV8838 H-bridge</text>
+    <text x="714" y="319" text-anchor="middle" font-size="9" fill="#555">Mechanical release actuation</text>
+
+    <text x="128" y="362" text-anchor="middle" font-size="9" font-weight="600" fill="#007a6e">VISION + INFERENCE</text>
+    <text x="412" y="362" text-anchor="middle" font-size="9" font-weight="600" fill="#b05e00">MISSION LOGIC</text>
+    <text x="714" y="362" text-anchor="middle" font-size="9" font-weight="600" fill="#0d2137">FLIGHT CONTROL</text>
+  </svg>
+  <p class="fig-caption">Two processing units (Myriad X VPU + Jetson TX2 NX) and one flight controller (Pixhawk 6X Mini). TX2 NX dispatches MAVLink only — no raw inference. All PID loops and motor authority stay on Pixhawk exclusively.</p>
+  </div>
+
+  <h3>Compute Workload Split</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Task</th><th>Processor</th><th>Interface</th></tr></thead>
+    <tbody>
+      <tr><td>YOLO detection (zones, banner, obstacles)</td><td>Myriad X VPU</td><td>DepthAI C++ pipeline</td></tr>
+      <tr><td>Stereo depth map generation</td><td>Myriad X VPU</td><td>DepthAI</td></tr>
+      <tr><td>HSV colour segmentation (red/green)</td><td>Myriad X VPU</td><td>DepthAI</td></tr>
+      <tr><td>QR region crop (greyscale ROI)</td><td>Myriad X VPU</td><td>DepthAI</td></tr>
+      <tr><td>QR decode — ZBar C++</td><td>TX2 NX CPU</td><td>Small crop via USB 3.0</td></tr>
+      <tr><td>Mission FSM</td><td>TX2 NX CPU</td><td>—</td></tr>
+      <tr><td>Zone alignment PID</td><td>TX2 NX CPU</td><td>—</td></tr>
+      <tr><td>CLAHE brightness normalisation</td><td>TX2 NX CUDA</td><td>GStreamer DeepStream</td></tr>
+      <tr><td>Visual SLAM / RTAB-Map / NVBlox</td><td>TX2 NX CPU + CUDA</td><td>—</td></tr>
+      <tr><td>MAVLink dispatch</td><td>TX2 NX</td><td>UART to Pixhawk</td></tr>
+      <tr><td>Offboard safety check</td><td>Ground station (offboard)</td><td>Payload safety (existence/release) relayed via 3DR telemetry</td></tr>
+      <tr><td>All PID loops, EKF, motor mixing</td><td>Pixhawk FC exclusively</td><td>—</td></tr>
+      <tr><td>Altitude hold, GPS loiter</td><td>Pixhawk FC</td><td>—</td></tr>
+      <tr><td>Winch PWM output</td><td>Pixhawk FC aux servo</td><td>MAV_CMD_DO_SET_SERVO</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Offboard Computing Integration</h3>
+  <p>Due to bandwidth constraints, offboard computing is strictly limited to payload safety checks. The ground station monitors whether the payload exists and whether it has been released properly. No heavy computing (like SLAM or A-star) is performed offboard because the telemetry link cannot transmit the required dense data. All visual navigation and path planning run entirely onboard the TX2 NX.</p>
+
+  <div class="grid2" style="margin-bottom:1.5rem;">
+    <div class="card">
+      <h4>Onboard (TX2 NX)</h4>
+      <ul>
+        <li>Full onboard Visual SLAM and A-star path planning</li>
+        <li>Transmit FC health and winch state to GCS via 3DR</li>
+        <li>Dynamic path updates every 30 ms</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Offboard (Ground Station)</h4>
+      <ul>
+        <li>Payload safety monitoring (exists and released properly)</li>
+        <li>FC health check monitoring via 3DR link</li>
+        <li>Emergency RTL trigger</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Backup 3DR Telemetry — Payload Safety</h3>
+  <p>A pair of <strong>3DR 915 MHz radios</strong> (one on the drone, one at the ground station) provides a secondary MAVLink connection independent of the Skydroid T12 RC link. This link serves two primary roles: FC health monitoring and payload safety checks.</p>
+  <p>During the winch sequence, the ground station receives real-time winch state telemetry — current DRV8838 current draw, ADRC swing estimates, spool position, and release confirmation — over the 3DR link. If the Skydroid T12 datalink drops during payload delivery, the 3DR radio allows the ground operator to independently command an emergency RTL via MAVLink without relying on the RC link or the TX2 NX FSM.</p>
+  <div class="alert alert-amber">
+    <strong>3DR Safety Triggers (ground station → Pixhawk via 3DR):</strong><br>
+    Payload release not confirmed within 10 s of winch activation → GCS sends RTL command. &nbsp;|&nbsp;
+    Winch current anomaly (DRV8838 overcurrent) → GCS commands immediate brake + RTL. &nbsp;|&nbsp;
+    Both RC and 3DR links lost → Pixhawk standalone failsafe RTL activates.
+  </div>
+
+  <h3>Hardware Summary</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Component</th><th>Part</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Main compute</td><td>Jetson TX2 NX + custom 56 g carrier</td><td>FSM, QR decode, MAVLink dispatch</td></tr>
+      <tr><td>Vision + depth</td><td>OAK-D Lite (fixed focus, 45° tilt)</td><td>Primary sensing, stereo depth + RGB</td></tr>
+      <tr><td>Vision NPU</td><td>Myriad X VPU (4 TOPS, inside OAK-D Lite)</td><td>All inference — YOLO, depth, QR crop</td></tr>
+      <tr><td>Backup camera</td><td>Arducam B0251 + LN016 16 mm lens</td><td>Bottom-facing, 10° incline, OAK-D failover — <strong>CSI connection</strong> on TX2 NX carrier</td></tr>
+      <tr><td>Flight controller</td><td>Pixhawk 6X on 6X Mini baseboard</td><td>All flight control, GPS, geofence, winch PWM</td></tr>
+      <tr><td>GPS</td><td>Holybro Micro M10</td><td>Global position</td></tr>
+      <tr><td>RC and telemetry (primary)</td><td>Skydroid T12</td><td>12-ch RC, FPV, telemetry</td></tr>
+      <tr><td>Telemetry (backup)</td><td>3DR 915 MHz radio (×2 — air + ground)</td><td>Secondary MAVLink link; FC health check and winch status to GCS (No camera transmission)</td></tr>
+      <tr><td>Motors</td><td>GEPRC SPEEDX2 2806.5 1350KV × 4</td><td>Propulsion, 6S</td></tr>
+      <tr><td>Winch motor</td><td>N20 6V 100 RPM micro gear motor</td><td>Payload spool drive</td></tr>
+      <tr><td>Winch driver</td><td>Pololu DRV8838 H-bridge</td><td>PWM control of N20, current sensing</td></tr>
+      <tr><td>Battery</td><td>GNC 5000 mAh 6S 50C</td><td>Main power, 22.2 V nominal</td></tr>
+      <tr><td>Winch release</td><td>Carbon Fiber (CF) mechanical release</td><td>Payload release — mechanical</td></tr>
+      <tr><td>Spool</td><td>ASA 3D printed</td><td>Cable winding — ASA for durability</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="section" id="s02">
+  <span class="section-label">Section 02</span>
+  <h2>Mission 2 Complete Sequence</h2>
+  <hr class="section-rule">
+
+  <p>Mission 2 (SkyScan) is fully autonomous. Nine phases from pre-flight to landing. No manual intervention permitted after arm.</p>
+
+  <div class="phase-list">
+    <div class="phase-num">P0</div>
+    <div class="phase-body">
+      <div class="phase-title">Pre-Flight and Arm</div>
+      <div class="phase-meta">Ground · Jetson TX2 NX FSM State 0</div>
+      <p>Jetson boots, MAVLink initialised, cameras verified, GPS lock confirmed, geo-fence boundary uploaded to Pixhawk. Throttle cap 60% active.</p>
+    </div>
+
+    <div class="phase-num">P1</div>
+    <div class="phase-body">
+      <div class="phase-title">Autonomous Takeoff</div>
+      <div class="phase-meta">0 → 5 m · MAV_CMD_NAV_TAKEOFF</div>
+      <p>Vertical ascent to 5 m. Pixhawk EKF3 holds position. No lateral movement. Altitude confirmed within 0.3 m tolerance before FSM advances.</p>
+    </div>
+
+    <div class="phase-num">P2</div>
+    <div class="phase-body">
+      <div class="phase-title">Start QR Code Scan <span class="badge badge-green">Mandatory Gate</span></div>
+      <div class="phase-meta">5 m altitude · 1 m forward · OAK-D Lite primary</div>
+      <p>Myriad X crops greyscale ROI. TX2 NX ZBar C++ decodes. <code>target_id</code> stored. Drone does not proceed until confirmed. On 8 consecutive failures, switches to Arducam B0251 fallback.</p>
+    </div>
+
+    <div class="phase-num">P3</div>
+    <div class="phase-body">
+      <div class="phase-title">Banner Detection and Corridor Alignment</div>
+      <div class="phase-meta">5 m → 3 m · YOLO green class · centroid PID</div>
+      <p>Myriad X detects AeroTHON 2026 green banner. Stereo depth gives distance. Centroid PID aligns to corridor centreline within 0.25 m. Drone descends to 3 m (10 ft) for corridor entry.</p>
+    </div>
+
+    <div class="phase-num">P4</div>
+    <div class="phase-body">
+      <div class="phase-title">Corridor Navigation — Forward Lap</div>
+      <div class="phase-meta">3 m altitude · 2 m/s ideal · Wall-following only — NO obstacle nav</div>
+      <p>Pure corridor wall-following using stereo depth centring. No obstacles on forward lap. No A-star. Depth profile samples left and right wall distances; lateral velocity correction re-centres if asymmetry exceeds 0.3 m.</p>
+    </div>
+
+    <div class="phase-num">P5</div>
+    <div class="phase-body">
+      <div class="phase-title">Delivery Zone Entry and Ascent</div>
+      <div class="phase-meta">3 m → 10 m · Barometer + OAK-D depth blended</div>
+      <p>Exit corridor, ascend to 10 m. Altitude confirmed within 0.3 m before scanning begins.</p>
+    </div>
+
+    <div class="phase-num">P6</div>
+    <div class="phase-body">
+      <div class="phase-title">Delivery Zone QR Identification</div>
+      <div class="phase-meta">10 m altitude · hover scan · HSV red rejection</div>
+      <p>Hover scan at 10 m. Myriad X crops QR regions. ZBar decodes each. Match against <code>target_id</code>. HSV red mask rejects any QR inside or within 1.5 m of a red zone. 3D world position computed. Confirmed over 3 consecutive frames.</p>
+    </div>
+
+    <div class="phase-num">P7</div>
+    <div class="phase-body">
+      <div class="phase-title">Payload Delivery + CG Compensation</div>
+      <div class="phase-meta">10 m → 5 m → 10 m · ADRC winch · Mechanical release</div>
+      <p>Fly to position above QR at 10 m. Descend to 5 m. Zone alignment PID (0.25 m tolerance). Winch ADRC sequence: ramp lower → ground contact → mechanical-release → ramp reel-back. Post-drop: CG feed-forward correction + stability gate. Ascend to 10 m.</p>
+    </div>
+
+    <div class="phase-num">P8</div>
+    <div class="phase-body">
+      <div class="phase-title">Return Flight — Obstacle Nav Active <span class="badge badge-orange">Full Pipeline</span></div>
+      <div class="phase-meta">Variable altitude · A-star on 2D occupancy grid · Visual SLAM odometry</div>
+      <p>Full OAK-D obstacle navigation active. A-star path planning on depth-derived 2D occupancy grid updated every 30 ms. Visual SLAM provides odometry to Pixhawk. Banner detection on return lap re-aligns to corridor. 2 m/s clear, 0.5 m/s dense.</p>
+    </div>
+
+    <div class="phase-num">P9</div>
+    <div class="phase-body">
+      <div class="phase-title">Landing</div>
+      <div class="phase-meta">GPS RTL · 0.3 m/s final descent · Disarm on touchdown</div>
+      <p>GPS return to stored take-off coordinates. Pixhawk LAND mode. 0.3 m/s final approach. Motors disarm on touchdown.</p>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+  <svg viewBox="0 0 860 200" xmlns="http://www.w3.org/2000/svg" font-family="JetBrains Mono, monospace">
+    <rect x="10" y="60" width="120" height="80" rx="4" fill="#d0ede9" stroke="#007a6e" stroke-width="1.5"/>
+    <text x="70" y="95" text-anchor="middle" font-size="10" font-weight="600" fill="#0a3d38">Take-off</text>
+    <text x="70" y="112" text-anchor="middle" font-size="9" fill="#007a6e">Zone + QR</text>
+
+    <rect x="140" y="70" width="260" height="60" rx="3" fill="#f7f6f1" stroke="#aaa" stroke-width="1" stroke-dasharray="4 3"/>
+    <text x="270" y="97" text-anchor="middle" font-size="8" fill="#555">CORRIDOR  3.5 m × 10 m</text>
+    <text x="270" y="113" text-anchor="middle" font-size="9" fill="#007a6e">Forward: wall-follow only</text>
+
+    <line x1="140" y1="70" x2="400" y2="70" stroke="#888" stroke-width="2"/>
+    <line x1="140" y1="130" x2="400" y2="130" stroke="#888" stroke-width="2"/>
+
+    <rect x="410" y="20" width="430" height="160" rx="4" fill="#fff8f0" stroke="#b05e00" stroke-width="1.5"/>
+    <text x="625" y="42" text-anchor="middle" font-size="10" font-weight="600" fill="#4a2800">Delivery Zone  40 m × 30 m</text>
+
+    <rect x="550" y="55" width="100" height="70" rx="3" fill="#fce8e8" stroke="#a33030" stroke-width="1.5"/>
+    <text x="600" y="88" text-anchor="middle" font-size="9" font-weight="600" fill="#a33030">RED</text>
+    <text x="600" y="102" text-anchor="middle" font-size="9" fill="#a33030">ZONE</text>
+
+    <rect x="430" y="60" width="22" height="22" rx="2" fill="#0d2137" stroke="#fff" stroke-width="1.5"/>
+    <text x="441" y="75" text-anchor="middle" font-size="8" fill="#fff">QR</text>
+    <rect x="430" y="100" width="22" height="22" rx="2" fill="#0d2137" stroke="#fff" stroke-width="1.5"/>
+    <text x="441" y="115" text-anchor="middle" font-size="8" fill="#fff">QR</text>
+    <rect x="670" y="60" width="22" height="22" rx="2" fill="#007a6e" stroke="#5de0ce" stroke-width="2"/>
+    <text x="681" y="75" text-anchor="middle" font-size="8" fill="#fff">QR</text>
+    <text x="681" y="92" text-anchor="middle" font-size="7.5" fill="#007a6e">TARGET</text>
+    <rect x="720" y="110" width="22" height="22" rx="2" fill="#0d2137" stroke="#fff" stroke-width="1.5"/>
+    <text x="731" y="125" text-anchor="middle" font-size="8" fill="#fff">QR</text>
+    <rect x="790" y="65" width="22" height="22" rx="2" fill="#0d2137" stroke="#fff" stroke-width="1.5"/>
+    <text x="801" y="80" text-anchor="middle" font-size="8" fill="#fff">QR</text>
+
+    <path d="M130 90 L410 90" stroke="#22aa88" stroke-width="2.5" fill="none" marker-end="url(#arwt)" stroke-dasharray="0"/>
+    <text x="270" y="145" text-anchor="middle" font-size="8.5" fill="#22aa88">→ forward lap: wall-follow only, no obstacles</text>
+
+    <path d="M408 105 L140 105" stroke="#e07000" stroke-width="2.5" fill="none" marker-end="url(#arwt)" stroke-dasharray="5 3"/>
+    <text x="270" y="160" text-anchor="middle" font-size="8.5" fill="#e07000">← return lap: A-star obstacle nav active</text>
+
+    <rect x="137" y="60" width="8" height="70" rx="1" fill="#22aa88"/>
+    <text x="141" y="56" text-anchor="middle" font-size="8" fill="#22aa88">▼</text>
+    <rect x="403" y="60" width="8" height="70" rx="1" fill="#22aa88"/>
+    <text x="407" y="56" text-anchor="middle" font-size="8" fill="#22aa88">▼</text>
+
+    <text x="141" y="185" text-anchor="middle" font-size="8" fill="#22aa88">Banner</text>
+    <text x="407" y="185" text-anchor="middle" font-size="8" fill="#22aa88">Banner</text>
+  </svg>
+  <p class="fig-caption">Course layout. Forward lap (green): corridor wall-following only — no obstacles. Return lap (orange dashed): full A-star obstacle navigation active. Target QR is unique per team; not pre-programmed.</p>
+  </div>
+</section>
+
+<section class="section" id="s03">
+  <span class="section-label">Section 03</span>
+  <h2>Corridor Navigation — Forward vs Return Lap</h2>
+  <hr class="section-rule">
+
+  <h3>Forward Lap: Wall-Following via Depth Centring</h3>
+  <p>The drone follows the 3.5 m wide corridor at 3 m altitude. The Myriad X generates a depth map per frame. The TX2 NX samples the depth map at fixed horizontal slices to extract left wall distance and right wall distance. The drone is commanded to maintain equal distance from both walls.</p>
+
+<pre><span class="cm">// Lateral wall balance from depth map columns (TX2 NX CPU)</span>
+<span class="kw">float</span> left_dist  = <span class="fn">median_depth_in_region</span>(depth, LEFT_COLUMN_ROI);
+<span class="kw">float</span> right_dist = <span class="fn">median_depth_in_region</span>(depth, RIGHT_COLUMN_ROI);
+<span class="kw">float</span> lateral_err = left_dist <span class="op">-</span> right_dist;   <span class="cm">// positive = drift right</span>
+<span class="kw">float</span> vy_cmd      = <span class="op">-</span><span class="num">0.3f</span> <span class="op">*</span> lateral_err;        <span class="cm">// push back to centre</span>
+mavsdk.<span class="fn">send_velocity</span>(FWD_SPEED, vy_cmd, <span class="num">0.0f</span>);</pre>
+
+  <h3>Return Lap: Full Obstacle Navigation</h3>
+  <p>On return the full pipeline activates: A-star path planning on a 2D occupancy grid derived from depth segments, updated every 30 ms. Visual SLAM (RTAB-Map or NVBlox) provides odometry as a GPS substitute inside the corridor. Speed 2 m/s in clear sections, 0.5 m/s in dense sections.</p>
+
+  <div class="grid2">
+    <div class="card">
+      <h4>Forward Lap</h4>
+      <ul>
+        <li>Depth centring — left/right wall balance</li>
+        <li>No obstacle detection active</li>
+        <li>No A-star path planning</li>
+        <li>2 m/s, hard cap 5 m/s</li>
+        <li>Lowest compute load — 30 ms cycle maintained easily</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Return Lap</h4>
+      <ul>
+        <li>Full OAK-D stereo obstacle segmentation</li>
+        <li>A-star on 2D occupancy grid (30 ms update)</li>
+        <li>Visual SLAM odometry to Pixhawk</li>
+        <li>2 m/s clear, 0.5 m/s dense sections</li>
+        <li>Full pipeline — highest compute load</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="s04">
+  <span class="section-label">Section 04</span>
+  <h2>Delivery Zone: QR Identification and Red Zone Avoidance</h2>
+  <hr class="section-rule">
+
+  <p>Multiple QR codes are scattered across the 40 m × 30 m delivery zone. The drone must identify the one matching <code>target_id</code> while rejecting codes inside or near the red zone. No target coordinates are pre-programmed — everything is determined in flight.</p>
+
+  <h3>Step-by-Step Identification</h3>
+
+  <div class="pipeline">
+    <span class="pip-step">Hover scan 10 m</span><span class="pip-arr">→</span>
+    <span class="pip-step">Myriad X QR crop</span><span class="pip-arr">→</span>
+    <span class="pip-step">ZBar decode + match</span><span class="pip-arr">→</span>
+    <span class="pip-step">Red zone reject</span><span class="pip-arr">→</span>
+    <span class="pip-step">3D pos via depth</span><span class="pip-arr">→</span>
+    <span class="pip-step">Confirm ×3 frames</span><span class="pip-arr">→</span>
+    <span class="pip-step">qr_3d_pos locked</span>
+  </div>
+
+  <p>At 10 m with a 45° tilt, the OAK-D Lite sees the floor approximately 10 m ahead (tan 45° × 10 m). The drone performs a slow lateral sweep at under 1 m/s. Each decoded string is compared to <code>target_id</code>. The HSV red mask rejects any QR whose centroid falls within 1.5 m of a red zone cluster. 3D world position is computed via pinhole projection using depth at the QR centroid, then confirmed over three consecutive frames before the drone commits to descend.</p>
+
+<pre><span class="kw">for</span> each frame at 10m:
+  crops = myriad_x.<span class="fn">get_qr_regions</span>()
+  <span class="kw">for</span> crop in crops:
+    decoded = zbar.<span class="fn">scan</span>(crop)
+    <span class="kw">if</span> decoded == target_id:
+      <span class="kw">if not</span> <span class="fn">in_red_zone</span>(crop.bbox):
+        pos = <span class="fn">depth_to_world</span>(crop.centroid, depth_frame)
+        confirm_count <span class="op">+=</span> <span class="num">1</span>
+        <span class="kw">if</span> confirm_count <span class="op">>=</span> <span class="num">3</span>:
+          qr_3d_pos = pos
+          transition to delivery</pre>
+
+  <h3>Red Zone Detection</h3>
+  <p>HSV colour segmentation uses two hue ranges to handle lighting variation: Hue 0–10 and Hue 170–180, both with Saturation above 120 and Value above 80. Red zone pixels are also overlaid on the depth safety map so the FSM avoids red areas both visually and physically.</p>
+
+  <div class="alert alert-red">
+    <strong>Red Zone Rules</strong><br>
+    At 10 m scan: reject any QR whose centroid is within 1.5 m of a red cluster.<br>
+    During descent: Pixhawk geo-fence exclusion zone refuses waypoint if target falls inside.<br>
+    During lateral flight: Myriad X red mask + depth map → steer around within 3 m.
+  </div>
+</section>
+
+<section class="section" id="s05">
+  <span class="section-label">Section 05</span>
+  <h2>ADRC Winch System</h2>
+  <hr class="section-rule">
+
+  <h3>ADRC Principle</h3>
+  <p>Active Disturbance Rejection Control treats the pendulum swing of the Kevlar cable as an external disturbance. An Extended State Observer estimates the swing state in real-time from IMU attitude rate data at 100 Hz — no physical pendulum model required. The controller cancels the disturbance via DRV8838 brake pauses and micro attitude corrections to the Pixhawk.</p>
+
+  <div class="math">
+ESO input:  IMU roll_rate_dps, pitch_rate_dps  @  100 Hz
+ESO output: estimated swing disturbance magnitude
+If disturbance > 8 dps → DRV8838 brake 300 ms
+             AND → SET_ATTITUDE_TARGET opposing swing direction
+  </div>
+
+  <h3>Winch Hardware</h3>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Part</th><th>Spec</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>N20 6V 100 RPM micro gear motor</td><td>6V, 100 RPM</td><td>Drives the spool</td></tr>
+      <tr><td>Pololu DRV8838 H-bridge</td><td>1.8A peak, PWM input</td><td>Controls N20 direction and speed; current sensing</td></tr>
+      <tr><td>Kevlar braided cable</td><td>High tensile, low stretch</td><td>Tether between spool and payload</td></tr>
+      <tr><td>ASA spool</td><td>3D printed ASA</td><td>Winds and unwinds cable</td></tr>
+      <tr><td>CF mechanical release hook</td><td>Carbon Fiber hook</td><td>Holds and releases 100 g payload — mechanical release</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Full Winch Sequence</h3>
+
+  <div class="winch-step">
+    <div class="winch-letter">A</div>
+    <div class="winch-content">
+      <h4>Pre-lower stabilisation</h4>
+      <p>GPS drift under 0.5 m/s, roll and pitch rates under 3 dps. Ensures cable starts near-vertical.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">B</div>
+    <div class="winch-content">
+      <h4>Soft ramp lower — 30% PWM over 10 steps × 50 ms = 500 ms</h4>
+      <p>DRV8838 ramps from 0 to 30% duty. Cable unspools slowly. ADRC ESO begins reading IMU at 100 Hz.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">C</div>
+    <div class="winch-content">
+      <h4>Active swing damping during lower</h4>
+      <p>If roll or pitch rate exceeds 8 dps: DRV8838 brakes for 300 ms, then resumes. Pixhawk receives micro attitude corrections opposing swing direction via SET_ATTITUDE_TARGET.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">D</div>
+    <div class="winch-content">
+      <h4>Ground contact detection — 180 mA stall current</h4>
+      <p>N20 motor stalls on contact. DRV8838 current spikes above 180 mA. FSM detects spike and brakes immediately.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">E</div>
+    <div class="winch-content">
+      <h4>Payload release — CF mechanical release</h4>
+      <p>Mechanical release actuates. Wait 500 ms. Confirm current drop (load gone) before commanding reel-back.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">F</div>
+    <div class="winch-content">
+      <h4>Soft ramp reel-back — 20% PWM over 10 steps</h4>
+      <p>DRV8838 ramps from 0 to 20% duty in reverse. ADRC wobble guard continues. Free cable oscillates more — brake pause on any rate above 8 dps.</p>
+    </div>
+  </div>
+  <div class="winch-step">
+    <div class="winch-letter">G</div>
+    <div class="winch-content">
+      <h4>Spool home — hall effect or back-EMF</h4>
+      <p>Cable fully retracted. DRV8838 brakes. Winch disarmed. FSM transitions to CG compensation sequence.</p>
+    </div>
+  </div>
+
+<pre><span class="cm">// Winch parameters</span>
+WINCH_LOWER_DUTY   = <span class="num">30</span>%   <span class="cm">// PWM duty for lowering</span>
+WINCH_RETRACT_DUTY = <span class="num">20</span>%   <span class="cm">// PWM duty for reel-back</span>
+RAMP_STEPS         = <span class="num">10</span>
+RAMP_INTERVAL_MS   = <span class="num">50</span>    <span class="cm">// 500 ms total ramp time</span>
+WOBBLE_LIMIT_DPS   = <span class="num">8.0</span>   <span class="cm">// degrees per second</span>
+GROUND_CONTACT_MA  = <span class="num">180</span>   <span class="cm">// milliamps stall threshold</span>
+
+lower sequence:
+  <span class="fn">wait_for_stable_hover</span>()                 <span class="cm">// gps drift &lt; 0.5 m/s, rates &lt; 3 dps</span>
+  <span class="fn">ramp_drv8838</span>(<span class="num">0</span>, WINCH_LOWER_DUTY, RAMP_STEPS)
+  <span class="kw">while not</span> ground_contact:
+    <span class="kw">if</span> imu_rate <span class="op">&gt;</span> WOBBLE_LIMIT_DPS: <span class="fn">brake</span>(<span class="num">300</span>ms) <span class="kw">then</span> resume
+    <span class="kw">if</span> current <span class="op">&gt;</span> GROUND_CONTACT_MA: <span class="kw">break</span>
+  <span class="fn">brake_drv8838</span>()
+  <span class="fn">actuate_mechanical_release</span>()              <span class="cm">// CF hook</span>
+  <span class="fn">sleep</span>(<span class="num">500</span>ms); <span class="fn">confirm_current_drop</span>()
+  <span class="fn">ramp_drv8838</span>(<span class="num">0</span>, <span class="op">-</span>WINCH_RETRACT_DUTY, RAMP_STEPS)
+  <span class="kw">while not</span> spool_home:
+    <span class="kw">if</span> imu_rate <span class="op">&gt;</span> WOBBLE_LIMIT_DPS: <span class="fn">brake</span>(<span class="num">300</span>ms) <span class="kw">then</span> resume
+  <span class="fn">brake_drv8838</span>();  winch_disarmed = <span class="kw">true</span>;</pre>
+</section>
+
+<section class="section" id="s06">
+  <span class="section-label">Section 06</span>
+  <h2>Centre of Gravity Compensation After Payload Drop</h2>
+  <hr class="section-rule">
+
+  <p>When the 100 g payload is released, total mass drops by approximately 5.4% (100 g / 1850 g AUW). The CG shifts upward and potentially laterally. Without correction, the drone will pitch or roll briefly and the PID throttle tuning (calibrated with payload attached) will over-supply lift momentarily.</p>
+
+  <div class="grid2" style="margin-bottom:1.5rem;">
+    <div class="card">
+      <h4>What happens at release</h4>
+      <ul>
+        <li>Total mass drops ~100 g (~5.4%)</li>
+        <li>CG shifts upward and possibly laterally</li>
+        <li>Throttle over-supplies lift momentarily</li>
+        <li>Attitude PID sees new dynamics — transient pitch/roll</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>Compensation approach</h4>
+      <ul>
+        <li>Pre-computed throttle feed-forward reduction</li>
+        <li>Attitude bias injection via SET_ATTITUDE_TARGET (2 s)</li>
+        <li>Pixhawk PID natural re-convergence</li>
+        <li>FSM stability gate before return flight</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>Step 1 + 2: Throttle Feed-Forward</h4>
+<pre><span class="cm">// After payload release confirmed (current spike gone)</span>
+<span class="kw">const float</span> PAYLOAD_MASS_KG   = <span class="num">0.100f</span>;
+<span class="kw">const float</span> DRONE_MASS_KG     = <span class="num">1.850f</span>;   <span class="cm">// AUW with payload</span>
+<span class="kw">const float</span> mass_ratio_change = PAYLOAD_MASS_KG <span class="op">/</span> DRONE_MASS_KG;  <span class="cm">// ~5.4%</span>
+
+<span class="cm">// Reduce throttle setpoint by mass ratio immediately</span>
+<span class="kw">float</span> new_throttle_ff = current_throttle_ff <span class="op">*</span> (<span class="num">1.0f</span> <span class="op">-</span> mass_ratio_change);
+<span class="fn">send_throttle_feedforward</span>(vehicle, new_throttle_ff);</pre>
+
+  <h4>Step 3: Attitude Bias Injection (2 seconds)</h4>
+  <p>A <code>SET_ATTITUDE_TARGET</code> command is sent with pre-computed CG bias offsets as roll and pitch corrections for 2 seconds. This counteracts transient instability as the FC's PID re-converges on the new dynamic equilibrium.</p>
+
+  <h4>Step 5: Stability Gate Before Return Flight</h4>
+<pre><span class="cm">// Post-release stability gate — must pass before ascending for return</span>
+<span class="kw">auto</span> <span class="fn">wait_for_cg_settle</span> = [&amp;](<span class="kw">float</span> timeout_s) {
+    <span class="kw">auto</span> t_start = <span class="fn">now</span>();
+    <span class="kw">while</span> (<span class="fn">elapsed</span>(t_start) &lt; timeout_s) {
+        <span class="kw">float</span> roll_rate  = <span class="fn">fabsf</span>(telem.<span class="fn">attitude_angular_velocity</span>().<span class="fn">roll_rad_s</span>  <span class="op">*</span> <span class="num">57.3f</span>);
+        <span class="kw">float</span> pitch_rate = <span class="fn">fabsf</span>(telem.<span class="fn">attitude_angular_velocity</span>().<span class="fn">pitch_rad_s</span> <span class="op">*</span> <span class="num">57.3f</span>);
+        <span class="kw">float</span> gps_speed  = <span class="fn">hypotf</span>(telem.<span class="fn">velocity</span>().north_m_s, telem.<span class="fn">velocity</span>().east_m_s);
+
+        <span class="kw">if</span> (roll_rate &lt; <span class="num">3.0f</span> &amp;&amp; pitch_rate &lt; <span class="num">3.0f</span> &amp;&amp; gps_speed &lt; <span class="num">0.5f</span>)
+            <span class="kw">return</span> STABLE;
+
+        std::this_thread::<span class="fn">sleep_for</span>(std::chrono::<span class="fn">milliseconds</span>(<span class="num">50</span>));
+    }
+    <span class="kw">return</span> TIMEOUT;  <span class="cm">// proceed anyway, log the event</span>
+};</pre>
+
+  <div class="alert alert-teal">
+    <strong>Stability gate thresholds:</strong> Roll rate &lt; 3 dps AND pitch rate &lt; 3 dps AND GPS speed &lt; 0.5 m/s. Wait 1.5 seconds post-release. Timeout allowed — event is logged but flight continues.
+  </div>
+</section>
+
+<section class="section" id="s07">
+  <span class="section-label">Section 07</span>
+  <h2>Code Safety Mechanisms</h2>
+  <hr class="section-rule">
+
+  <h3>1. Depth-Based Safety Zone Segmentation</h3>
+  <p>The Myriad X generates a depth map every frame. The FSM classifies each frame into three zones. Red zone pixels from the HSV mask are overlaid on the depth map — visually restricted areas and physically obstructed areas are both represented in the same safety map the FSM reads every 30 ms cycle.</p>
+
+  <div class="grid3">
+    <div class="card" style="border-left:3px solid #007a6e;">
+      <h4 style="color:var(--teal)">CLEAR</h4>
+      <p>Depth &gt; 5 m. Full cruise speed permitted (2 m/s).</p>
+    </div>
+    <div class="card" style="border-left:3px solid #b05e00;">
+      <h4 style="color:var(--amber)">CAUTION</h4>
+      <p>Depth 2–5 m. Speed capped at 1 m/s.</p>
+    </div>
+    <div class="card" style="border-left:3px solid #a33030;">
+      <h4 style="color:var(--red)">DANGER</h4>
+      <p>Depth &lt; 2 m OR red pixel present. Full stop, re-evaluate.</p>
+    </div>
+  </div>
+
+<pre><span class="cm">// Safety zone classification per frame</span>
+<span class="kw">enum</span> SafeZone { CLEAR, CAUTION, DANGER };
+
+SafeZone <span class="fn">classify_zone</span>(<span class="kw">float</span> depth_m, <span class="kw">bool</span> red_pixel_present) {
+    <span class="kw">if</span> (red_pixel_present)      <span class="kw">return</span> DANGER;   <span class="cm">// red zone overrides depth</span>
+    <span class="kw">if</span> (depth_m &lt; <span class="num">2.0f</span>)        <span class="kw">return</span> DANGER;
+    <span class="kw">if</span> (depth_m &lt; <span class="num">5.0f</span>)        <span class="kw">return</span> CAUTION;
+    <span class="kw">return</span> CLEAR;
+}
+
+<span class="kw">float</span> <span class="fn">get_safe_speed</span>(SafeZone z) {
+    <span class="kw">if</span> (z == DANGER)   <span class="kw">return</span> <span class="num">0.0f</span>;
+    <span class="kw">if</span> (z == CAUTION)  <span class="kw">return</span> <span class="num">1.0f</span>;
+    <span class="kw">return</span> MAX_CRUISE_SPEED;  <span class="cm">// 2.0 m/s</span>
+}</pre>
+
+  <h3>2. Auto Brightness and Saturation Normalisation (CLAHE)</h3>
+  <p>The OAK-D Lite transitions from shaded corridor to open-sun delivery zone. Without correction, YOLO and HSV masks fail on over or under-exposed frames. CLAHE is applied to the L channel of LAB colour space (preserving hue), followed by auto-saturation scaling in HSV. Runs on TX2 NX CUDA before the frame enters the Myriad X inference queue.</p>
+
+<pre><span class="cm">// Brightness normalisation before inference (TX2 NX CUDA)</span>
+cv::Mat <span class="fn">normalize_frame</span>(<span class="kw">const</span> cv::Mat&amp; bgr) {
+    cv::Mat lab;
+    cv::<span class="fn">cvtColor</span>(bgr, lab, cv::COLOR_BGR2Lab);
+
+    std::vector&lt;cv::Mat&gt; channels;
+    cv::<span class="fn">split</span>(lab, channels);
+
+    <span class="cm">// CLAHE on L channel only — preserves hue for HSV masks</span>
+    <span class="kw">auto</span> clahe = cv::<span class="fn">createCLAHE</span>(<span class="cm">/*clipLimit=*/</span><span class="num">2.0</span>, cv::<span class="fn">Size</span>(<span class="num">8</span>, <span class="num">8</span>));
+    clahe-&gt;<span class="fn">apply</span>(channels[<span class="num">0</span>], channels[<span class="num">0</span>]);
+    cv::<span class="fn">merge</span>(channels, lab);
+    cv::<span class="fn">cvtColor</span>(lab, result, cv::COLOR_Lab2BGR);
+
+    <span class="cm">// Auto saturation: if washed out (&lt;60), scale up to 1.5×</span>
+    cv::Mat hsv;
+    cv::<span class="fn">cvtColor</span>(result, hsv, cv::COLOR_HSV2BGR);
+    cv::<span class="fn">split</span>(hsv, channels);
+    <span class="kw">float</span> mean_sat = cv::<span class="fn">mean</span>(channels[<span class="num">1</span>])[<span class="num">0</span>];
+    <span class="kw">if</span> (mean_sat &lt; <span class="num">60.0f</span>) {
+        <span class="kw">float</span> scale = std::<span class="fn">min</span>(<span class="num">1.5f</span>, <span class="num">80.0f</span> <span class="op">/</span> mean_sat);
+        channels[<span class="num">1</span>].<span class="fn">convertTo</span>(channels[<span class="num">1</span>], <span class="op">-</span><span class="num">1</span>, scale, <span class="num">0</span>);
+    }
+    cv::<span class="fn">merge</span>(channels, hsv);
+    cv::<span class="fn">cvtColor</span>(hsv, result, cv::COLOR_HSV2BGR);
+    <span class="kw">return</span> result;
+}</pre>
+
+  <h3>3. Wall Detection via Depth Map Segmentation</h3>
+  <p>Used in the forward lap corridor. The TX2 NX builds a 2D lateral distance profile by sampling the depth map at fixed horizontal slices. If asymmetry exceeds 0.3 m, a lateral correction velocity is applied.</p>
+
+<pre><span class="cm">// Lateral wall balance (forward lap only)</span>
+<span class="kw">float</span> left_dist  = <span class="fn">median_depth_in_region</span>(depth, LEFT_COLUMN_ROI);
+<span class="kw">float</span> right_dist = <span class="fn">median_depth_in_region</span>(depth, RIGHT_COLUMN_ROI);
+<span class="kw">float</span> lateral_err = left_dist <span class="op">-</span> right_dist;
+<span class="kw">float</span> vy_cmd      = <span class="op">-</span><span class="num">0.3f</span> <span class="op">*</span> lateral_err;
+mavsdk.<span class="fn">send_velocity</span>(FWD_SPEED, vy_cmd, <span class="num">0.0f</span>);</pre>
+</section>
+
+<section class="section" id="s08">
+  <span class="section-label">Section 08</span>
+  <h2>Camera Pipeline: Adaptive Resolution at Fixed 30 fps</h2>
+  <hr class="section-rule">
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Resolution</th><th>FPS</th><th>Use Case</th><th>NPU Load</th></tr></thead>
+    <tbody>
+      <tr><td>4K (3840×2160)</td><td>30</td><td>Pre-flight check + initial QR scan (stationary hover)</td><td>High</td></tr>
+      <tr><td>1080p (1920×1080)</td><td>30</td><td>Corridor navigation + delivery zone scan (normal flight)</td><td>Moderate</td></tr>
+      <tr><td>720p (1280×720)</td><td>30</td><td>Fallback — vibration-induced quality drop</td><td>Low</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>Resolution transitions are handled inside GStreamer DeepStream by switching <code>nvvidconv</code> output caps at runtime — no pipeline restart. A combined quality score drives the decision:</p>
+
+<pre>quality_score = <span class="num">0.6</span> <span class="op">*</span> zbar_confidence <span class="op">+</span> <span class="num">0.4</span> <span class="op">*</span> depth_confidence_mean
+
+<span class="kw">if</span> quality_score &lt; <span class="num">0.55</span> and current_res &gt; 720p:
+  <span class="fn">step_down_resolution</span>()
+
+<span class="kw">if</span> quality_score &gt; <span class="num">0.80</span> and stable_frames &gt;= <span class="num">60</span>:   <span class="cm">// 2 s at 30 fps</span>
+  <span class="fn">step_up_resolution</span>()</pre>
+
+  <h3>Camera Failover — Five-Trigger System</h3>
+  <p>The switching algorithm monitors five independent failure signals and transitions from OAK-D Lite to Arducam B0251 without pipeline restart or frame gap. Automatic recovery attempts every 30 seconds.</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Trigger</th><th>Condition</th></tr></thead>
+    <tbody>
+      <tr><td>USB timeout</td><td>No frames from OAK-D for 500 ms</td></tr>
+      <tr><td>VPU overtemperature</td><td>Myriad X thermal alert flag set</td></tr>
+      <tr><td>QR decode fail streak</td><td>8 consecutive frame failures</td></tr>
+      <tr><td>Depth confidence drop</td><td>Mean confidence below 40%</td></tr>
+      <tr><td>Angular rate excess</td><td>Rates above wobble threshold during scan</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="section" id="s09">
+  <span class="section-label">Section 09</span>
+  <h2>Autonomous Return and Landing</h2>
+  <hr class="section-rule">
+
+  <p>The return lap activates the full obstacle navigation pipeline — this is the key difference from the forward lap, which used corridor wall-following only.</p>
+
+  <div class="pipeline">
+    <span class="pip-step">Post-delivery ascent 10 m</span><span class="pip-arr">→</span>
+    <span class="pip-step">GPS to corridor exit</span><span class="pip-arr">→</span>
+    <span class="pip-step">Banner detect + align</span><span class="pip-arr">→</span>
+    <span class="pip-step">Descend to 3 m</span><span class="pip-arr">→</span>
+    <span class="pip-step">A-star obstacle nav</span><span class="pip-arr">→</span>
+    <span class="pip-step">GPS to take-off point</span><span class="pip-arr">→</span>
+    <span class="pip-step">LAND mode · disarm</span>
+  </div>
+
+  <p><strong>Visual SLAM in the corridor:</strong> RTAB-Map or NVBlox running on TX2 NX constructs a real-time 3D map from OAK-D stereo RGB-D and transmits Visual Odometry to the Pixhawk over MAVLink. Used as GPS substitute where satellite multipath errors are elevated inside the corridor structure.</p>
+
+  <p><strong>Landing:</strong> Pixhawk LAND mode. Barometer primary for final 1 m. Motors disarm on touchdown (accelerometer impact threshold).</p>
+</section>
+
+<section class="section" id="s10">
+  <span class="section-label">Section 10</span>
+  <h2>Emergency Override and RTL</h2>
+  <hr class="section-rule">
+
+  <p>Under normal flight the Pixhawk enforces 60% maximum throttle. Six conditions override this cap and restore full authority:</p>
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Condition</th><th>Trigger Threshold</th><th>Override Action</th></tr></thead>
+    <tbody>
+      <tr><td>Battery critical</td><td>Below 3.5V per cell (21V for 6S)</td><td>Full throttle, immediate RTL</td></tr>
+      <tr><td>GPS signal lost</td><td>No fix for 3 seconds</td><td>Full throttle, ascend to 15 m, hold or RTL</td></tr>
+      <tr><td>Geofence breach</td><td>Position outside programmed boundary</td><td>Full throttle, Pixhawk corrects back inside</td></tr>
+      <tr><td>Datalink lost (primary)</td><td>No Skydroid T12 / TX2 NX MAVLink heartbeat for 1.5 s</td><td>3DR backup link active — GCS maintains RTL authority. If 3DR also lost: Pixhawk standalone RTL</td></tr>
+      <tr><td>Dual camera failure</td><td>Both OAK-D and Arducam streams lost</td><td>Full throttle, RTL immediately</td></tr>
+      <tr><td>Manual emergency</td><td>Skydroid T12 channel 5 switched</td><td>Full throttle, full pilot authority in Stabilize</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="alert alert-red">
+    <strong>RTL sequence:</strong> Climb to 15 m at full allowed throttle → fly directly to stored take-off GPS → descend and land → disarm on touchdown. The 60% cap is restored only after manual re-arm in normal mode.
+  </div>
+</section>
+
+<section class="section" id="s11">
+  <span class="section-label">Section 11</span>
+  <h2>Summary of Innovations</h2>
+  <hr class="section-rule">
+
+  <div class="grid2">
+    <div class="card">
+      <h4>01 — Dual-processor vision pipeline</h4>
+      <p>Myriad X performs all inference. TX2 NX never receives a full raw frame — only results via USB 3.0. Eliminates GPU/CPU contention. Guarantees 30 ms cycle.</p>
+    </div>
+    <div class="card">
+      <h4>02 — Adaptive resolution at fixed 30 fps</h4>
+      <p>4K → 1080p → 720p based on combined quality score (ZBar + depth confidence). Frame rate held constant. Runtime <code>nvvidconv</code> cap switch — no pipeline restart.</p>
+    </div>
+    <div class="card">
+      <h4>03 — ADRC winch without pendulum model</h4>
+      <p>ESO estimates swing disturbance from IMU attitude rate signals. No physical pendulum model. Robust to cable length changes between deployment heights.</p>
+    </div>
+    <div class="card">
+      <h4>04 — Depth + red zone safety map fusion</h4>
+      <p>HSV red zone mask overlaid on stereo depth map. Single FSM safety classification (CLEAR/CAUTION/DANGER) unifies obstacle avoidance and zone avoidance logic.</p>
+    </div>
+    <div class="card">
+      <h4>05 — CUDA CLAHE brightness normalisation</h4>
+      <p>CLAHE on LAB L-channel preserves hue for HSV masks while correcting local brightness. Auto-saturation scaling restores discriminability on over-exposed frames.</p>
+    </div>
+    <div class="card">
+      <h4>06 — CG compensation and stability gate</h4>
+      <p>Throttle feed-forward + attitude bias injection immediately post-drop. FSM stability gate holds until rates and GPS speed confirm re-convergence before return flight.</p>
+    </div>
+    <div class="card">
+      <h4>07 — ADRC wind compensation at 10 m hover</h4>
+      <p>Linear ESO estimates wind gust forces on drone body. Proactive corrections before drift occurs. Combined with Pixhawk FC weathervaning for layered rejection.</p>
+    </div>
+    <div class="card">
+      <h4>08 — Visual SLAM as GPS substitute</h4>
+      <p>RTAB-Map / NVBlox on TX2 NX transmits visual odometry to Pixhawk via MAVLink. Used as GPS substitute inside the corridor where multipath errors are elevated.</p>
+    </div>
+    <div class="card">
+      <h4>09 — Five-trigger camera failover</h4>
+      <p>USB timeout, VPU overtemp, decode fail streak, depth confidence drop, angular rate excess — seamless switch to Arducam B0251, auto-recovery every 30 seconds.</p>
+    </div>
+    <div class="card">
+      <h4>10 — Emergency RTL with full throttle authority</h4>
+      <p>Pixhawk retains independent RTL authority at full throttle even if TX2 NX is unresponsive. Six trigger conditions. 60% cap restored only after manual re-arm.</p>
+    </div>
+    <div class="card">
+      <h4>11 — Ground contact via motor stall current</h4>
+      <p>DRV8838 current spike above 180 mA on N20 stall. No load cell or limit switch needed. Eliminates weight and complexity while meeting rulebook release requirement.</p>
+    </div>
+    <div class="card">
+      <h4>12 — Payload safety via offboard monitoring</h4>
+      <p>The offboard computer is dedicated strictly to payload safety checks (verifying payload existence and proper release). Heavy computing is kept onboard due to bandwidth limits.</p>
+    </div>
+    <div class="card">
+      <h4>13 — Backup 3DR telemetry for FC health checks</h4>
+      <p>Independent 915 MHz MAVLink link provides FC health checks and monitors winch state/payload release confirmation. It avoids camera transmission to stay within bandwidth limits.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="s12">
+  <span class="section-label">Section 12</span>
+  <h2>Key Parameters Quick Reference</h2>
+  <hr class="section-rule">
+
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Parameter</th><th>Value</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Throttle cap (normal)</td><td>60 percent</td><td>Pixhawk FC parameter</td></tr>
+      <tr><td>Throttle cap (emergency)</td><td>100 percent</td><td>Pixhawk failsafe override</td></tr>
+      <tr><td>Takeoff / start QR altitude</td><td>5 m</td><td>FSM waypoint command</td></tr>
+      <tr><td>Corridor navigation altitude</td><td>3 m (10 feet)</td><td>FSM waypoint command</td></tr>
+      <tr><td>Delivery zone scan altitude</td><td>10 m</td><td>FSM waypoint command</td></tr>
+      <tr><td>Payload drop altitude</td><td>5 m</td><td>FSM waypoint command</td></tr>
+      <tr><td>Maximum forward speed</td><td>5 m/s</td><td>MAVLink velocity cap</td></tr>
+      <tr><td>Ideal cruise speed</td><td>2 m/s</td><td>FSM velocity setpoint</td></tr>
+      <tr><td>FSM cycle time target</td><td>30 ms (33 fps)</td><td>TX2 NX loop timing</td></tr>
+      <tr><td>Camera resolution</td><td>4K → 1080p → 720p @ 30 fps</td><td>GStreamer DeepStream</td></tr>
+      <tr><td>QR decode fail threshold</td><td>8 consecutive frames</td><td>Camera switch trigger</td></tr>
+      <tr><td>Zone alignment tolerance</td><td>0.25 m</td><td>PID exit condition</td></tr>
+      <tr><td>Winch lower duty</td><td>30 percent PWM, 10-step ramp</td><td>DRV8838 parameter</td></tr>
+      <tr><td>Winch retract duty</td><td>20 percent PWM, 10-step ramp</td><td>DRV8838 parameter</td></tr>
+      <tr><td>Wobble pause threshold</td><td>8 dps</td><td>IMU rate monitor</td></tr>
+      <tr><td>Ground contact current</td><td>180 mA</td><td>DRV8838 current sense</td></tr>
+      <tr><td>Post-release CG settle wait</td><td>1.5 seconds</td><td>FSM stability gate</td></tr>
+      <tr><td>Corridor width</td><td>3.5 m</td><td>Course specification</td></tr>
+      <tr><td>Delivery zone dimensions</td><td>40 m × 30 m</td><td>Course specification</td></tr>
+      <tr><td>Mission time limit</td><td>15 minutes</td><td>Competition rule</td></tr>
+      <tr><td>UART baud rate</td><td>921,600 baud (up to 1,500,000)</td><td>TX2 NX ↔ Pixhawk link</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="alert alert-purple" style="margin-top:2rem;">
+    <strong>Pending Items</strong><br>
+    Delivery zone QR code physical dimensions from rulebook — needed for pixel size validation in alignment algo. &nbsp;|&nbsp;
+    Geo-fence coordinates will be issued at Phase 2 — ground station upload procedure to document.
+  </div>
+</section>
+
+</div></body>
+</html>
