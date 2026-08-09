@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+qr_dataset/
+real_backgrounds/
+.DS_Store
