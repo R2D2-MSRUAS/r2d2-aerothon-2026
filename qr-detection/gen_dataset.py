@@ -19,10 +19,14 @@ import os
 import random
 
 import cv2
-import numpy as np
-
 import synth
-from synth import make_qr, make_background, composite_qr, apply_conditions, qr_pixel_size
+from synth import (
+    apply_conditions,
+    composite_qr,
+    make_background,
+    make_qr,
+    qr_pixel_size,
+)
 
 WORDS = ["TARGET", "ZONE", "DROP", "ALPHA", "BRAVO", "DELTA", "ECHO"]
 

@@ -9,9 +9,10 @@ Methods:
 
 Usage: python benchmark.py            (needs DYLD_LIBRARY_PATH=/opt/homebrew/lib for zbar)
 """
-import time
 import csv
 import os
+import time
+
 import cv2
 import numpy as np
 from synth import generate_frame, qr_pixel_size
@@ -19,7 +20,7 @@ from synth import generate_frame, qr_pixel_size
 try:
     from pyzbar import pyzbar
     HAVE_ZBAR = True
-except Exception:
+except ImportError:
     HAVE_ZBAR = False
 
 TARGET = "AT2026RC35_M2_TARGET_07"
@@ -60,7 +61,7 @@ def run_hybrid(frame):
     if not HAVE_ZBAR:
         return [], None
     texts, points = wc_det.detectAndDecode(frame)
-    out = list(t for t in texts if t)          # WeChat may already decode
+    out = [t for t in texts if t]          # WeChat may already decode
     if points is not None:
         for i, quad in enumerate(points):
             if i < len(texts) and texts[i]:

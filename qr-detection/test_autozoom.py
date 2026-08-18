@@ -15,16 +15,16 @@ Pipeline per frame:
 Baseline for comparison: decode straight off the 1080p frame (flight mode).
 """
 import time
-import numpy as np
+
 import cv2
+import numpy as np
 import synth
 
 # run the synthetic camera at 4K = "full sensor"
 synth.FRAME_W, synth.FRAME_H = 3840, 2160
 synth.FOCAL_PX = synth.FRAME_W / (2 * np.tan(np.radians(69 / 2)))
-from synth import generate_frame, qr_pixel_size
-
 from pyzbar import pyzbar
+from synth import generate_frame, qr_pixel_size
 
 TARGET = "AT2026RC35_M2_TARGET_07"
 DISTANCES = [5, 8, 10, 12, 15]

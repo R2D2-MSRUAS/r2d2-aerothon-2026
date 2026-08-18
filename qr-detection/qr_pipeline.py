@@ -30,7 +30,7 @@ import numpy as np
 try:
     from pyzbar import pyzbar
     HAVE_ZBAR = True
-except Exception:
+except ImportError:
     HAVE_ZBAR = False
 
 WECHAT_FILES = ["detect.prototxt", "detect.caffemodel",

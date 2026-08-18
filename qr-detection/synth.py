@@ -8,10 +8,11 @@ Camera model: OAK-D Lite RGB ~69 deg HFOV. At 1920 px width,
 focal length f ~= 1920 / (2*tan(34.5 deg)) ~= 1397 px.
 Apparent QR size in pixels = f * qr_size_m / slant_range_m.
 """
-import numpy as np
-import cv2
-import qrcode
 import random
+
+import cv2
+import numpy as np
+import qrcode
 
 FRAME_W, FRAME_H = 1920, 1080
 FOCAL_PX = FRAME_W / (2 * np.tan(np.radians(69 / 2)))  # ~1397 px
@@ -52,7 +53,7 @@ def make_background(rng: random.Random) -> np.ndarray:
 
 
 def qr_pixel_size(distance_m: float, qr_size_m: float = QR_SIZE_M) -> int:
-    return max(8, int(round(FOCAL_PX * qr_size_m / distance_m)))
+    return max(8, round(FOCAL_PX * qr_size_m / distance_m))
 
 
 def composite_qr(bg: np.ndarray, qr: np.ndarray, size_px: int,

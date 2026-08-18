@@ -6,16 +6,16 @@ This is the hover-scan configuration: latency ~4x single detect, fine for
 a stationary scan, and it extends detection range well past decode range.
 """
 import time
-import numpy as np
+
 import cv2
+import numpy as np
 import synth
 
 synth.FRAME_W, synth.FRAME_H = 3840, 2160
 synth.FOCAL_PX = synth.FRAME_W / (2 * np.tan(np.radians(69 / 2)))
-from synth import generate_frame, qr_pixel_size
-
 from pyzbar import pyzbar
 from qreader import QReader
+from synth import generate_frame, qr_pixel_size
 
 TARGET = "AT2026RC35_M2_TARGET_07"
 DISTANCES = [8, 10, 12, 15, 18]

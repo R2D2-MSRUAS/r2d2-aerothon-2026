@@ -4,8 +4,9 @@ Confirms whether stepping up to 4K recovers decode range at the 10 m
 delivery-zone scan altitude.
 """
 import time
-import numpy as np
+
 import cv2
+import numpy as np
 import synth
 from synth import generate_frame
 
