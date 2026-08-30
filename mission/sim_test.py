@@ -42,7 +42,9 @@ class SyntheticMissionCamera:
     def __init__(self) -> None:
         self.frame_idx = 0
 
-    def generate_frame(self, state: MissionState, target_id: str = "DELIVERY_ZONE_ALPHA") -> tuple[np.ndarray, np.ndarray]:
+    def generate_frame(
+        self, state: MissionState, target_id: str = "DELIVERY_ZONE_ALPHA"
+    ) -> tuple[np.ndarray, np.ndarray]:
         self.frame_idx += 1
         h, w = 480, 640
         bgr = np.full((h, w, 3), (180, 180, 180), dtype=np.uint8)
@@ -55,16 +57,30 @@ class SyntheticMissionCamera:
             # Render a clear Start QR code with the target text
             cv2.rectangle(bgr, (260, 180), (380, 300), (255, 255, 255), -1)
             cv2.rectangle(bgr, (270, 190), (370, 290), (0, 0, 0), -1)
-            cv2.putText(bgr, "QR", (295, 250), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3)
+            cv2.putText(
+                bgr, "QR", (295, 250), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3
+            )
             depth[180:300, 260:380] = 1200  # 1.2m away
 
         elif state == MissionState.FIND_GREEN_BANNER:
             # Render the AeroTHON Green Banner marking corridor entrance
             cv2.rectangle(bgr, (200, 140), (440, 240), (40, 200, 40), -1)
-            cv2.putText(bgr, "AEROTHON 2026", (210, 195), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (255, 255, 255), 2)
+            cv2.putText(
+                bgr,
+                "AEROTHON 2026",
+                (210, 195),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.75,
+                (255, 255, 255),
+                2,
+            )
             depth[140:240, 200:440] = 2800  # 2.8m away
 
-        elif state in (MissionState.ENTER_CORRIDOR, MissionState.FOLLOW_CORRIDOR, MissionState.FOLLOW_CORRIDOR_RETURN):
+        elif state in (
+            MissionState.ENTER_CORRIDOR,
+            MissionState.FOLLOW_CORRIDOR,
+            MissionState.FOLLOW_CORRIDOR_RETURN,
+        ):
             # Left & right corridor walls (1.75m from center)
             depth[:, :100] = 1750  # Left wall
             depth[:, -100:] = 1750  # Right wall
@@ -79,12 +95,22 @@ class SyntheticMissionCamera:
         elif state in (MissionState.SCAN_TARGET_QR, MissionState.ALIGN_PAYLOAD):
             # Render Red No-Fly Zone on the right
             cv2.rectangle(bgr, (420, 260), (580, 400), (0, 0, 220), -1)
-            cv2.putText(bgr, "NO FLY", (440, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.putText(
+                bgr,
+                "NO FLY",
+                (440, 330),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                (255, 255, 255),
+                2,
+            )
 
             # Render Target QR code in center-left
             cv2.rectangle(bgr, (280, 220), (360, 300), (255, 255, 255), -1)
             cv2.rectangle(bgr, (290, 230), (350, 290), (0, 0, 0), -1)
-            cv2.putText(bgr, "QR", (305, 268), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+            cv2.putText(
+                bgr, "QR", (305, 268), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2
+            )
             depth[220:300, 280:360] = 2000
 
         return bgr, depth
@@ -144,20 +170,38 @@ def run_synthetic_test(num_steps: int = 120) -> None:
             percept = perceive_frame(bgr, depth)
 
             # Override target QR in percept for test harness
-            if st in (MissionState.SCAN_START_QR, MissionState.SCAN_TARGET_QR, MissionState.ALIGN_PAYLOAD):
-                percept["qr_codes"] = [(target_id, np.array([[280, 220], [360, 220], [360, 300], [280, 300]]))]
+            if st in (
+                MissionState.SCAN_START_QR,
+                MissionState.SCAN_TARGET_QR,
+                MissionState.ALIGN_PAYLOAD,
+            ):
+                percept["qr_codes"] = [
+                    (
+                        target_id,
+                        np.array([[280, 220], [360, 220], [360, 300], [280, 300]]),
+                    )
+                ]
 
             if st == MissionState.FIND_GREEN_BANNER:
                 percept["banner_box"] = (200, 140, 240, 100)
 
             # Local coordinates
-            lpos = coord_mgr.compute_local_coordinates(st, percept["d_left_wall"], percept["d_right_wall"], percept["fwd_dist_m"])
+            lpos = coord_mgr.compute_local_coordinates(
+                st,
+                percept["d_left_wall"],
+                percept["d_right_wall"],
+                percept["fwd_dist_m"],
+            )
 
             # Flight controller simulated movements
             if st == MissionState.FOLLOW_CORRIDOR:
-                fc.send_body_velocity(vx=CFG.CORRIDOR_SPEED_MPS, vy=0.0, vz=0.0, duration=0.1)
+                fc.send_body_velocity(
+                    vx=CFG.CORRIDOR_SPEED_MPS, vy=0.0, vz=0.0, duration=0.1
+                )
             elif st == MissionState.FOLLOW_CORRIDOR_RETURN:
-                fc.send_body_velocity(vx=-CFG.CORRIDOR_SPEED_MPS, vy=0.0, vz=0.0, duration=0.1)
+                fc.send_body_velocity(
+                    vx=-CFG.CORRIDOR_SPEED_MPS, vy=0.0, vz=0.0, duration=0.1
+                )
             elif st == MissionState.APPROACH_HOME:
                 fc.send_body_velocity(vx=-0.5, vy=0.0, vz=0.0, duration=0.1)
 
@@ -165,7 +209,9 @@ def run_synthetic_test(num_steps: int = 120) -> None:
             recorder.record(st, coord_mgr.global_pos, lpos, percept, target_id)
 
             if i % 4 == 0:
-                print(f"  Step {step:03d} | State: {st.name:<22} | Global: ({coord_mgr.global_pos.x:+.2f}, {coord_mgr.global_pos.y:+.2f}, Alt:{coord_mgr.global_pos.altitude:.1f}m) | Local: {lpos.section_name} (X:{lpos.x_rel:+.2f}m, Rem:{lpos.distance_to_goal:.1f}m)")
+                print(
+                    f"  Step {step:03d} | State: {st.name:<22} | Global: ({coord_mgr.global_pos.x:+.2f}, {coord_mgr.global_pos.y:+.2f}, Alt:{coord_mgr.global_pos.altitude:.1f}m) | Local: {lpos.section_name} (X:{lpos.x_rel:+.2f}m, Rem:{lpos.distance_to_goal:.1f}m)"
+                )
 
     fc.land()
     recorder.close()
@@ -174,7 +220,9 @@ def run_synthetic_test(num_steps: int = 120) -> None:
     print("  SIMULATION RESULTS SUMMARY:")
     print(f"  Total Steps Executed: {step}")
     print(f"  Unique States Traversed: {len(states_visited)}")
-    print(f"  Flight Log Created: 'sim_test_flight_log.csv' ({os.path.getsize('sim_test_flight_log.csv')} bytes)")
+    print(
+        f"  Flight Log Created: 'sim_test_flight_log.csv' ({os.path.getsize('sim_test_flight_log.csv')} bytes)"
+    )
     print("  FULL FORWARD & BACKWARD MISSION VERIFICATION: SUCCESS!")
     print("================================================================")
 

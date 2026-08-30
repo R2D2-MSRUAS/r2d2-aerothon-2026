@@ -16,7 +16,6 @@ from aerothon.flight_controller import (
 
 
 class TestFlightController(unittest.TestCase):
-
     def test_mock_fc_initial_state(self) -> None:
         fc = MockFlightController()
         x, y, z, yaw = fc.get_position_ned()

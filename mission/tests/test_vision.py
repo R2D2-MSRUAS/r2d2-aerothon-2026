@@ -25,7 +25,6 @@ from aerothon.vision import (
 
 
 class TestVision(unittest.TestCase):
-
     def test_depth_at_bbox_median(self) -> None:
         depth = np.zeros((480, 640), dtype=np.uint16)
         # Put 1900mm inside bbox

@@ -20,9 +20,10 @@ from aerothon.config import DEFAULT_CONFIG, MissionConfig, MissionState
 @dataclasses.dataclass
 class GlobalCoordinate:
     """Global Position in North-East-Down (NED) World Frame from Launch Pad (0, 0, 0)."""
-    x: float = 0.0        # +X: North / Forward (meters)
-    y: float = 0.0        # +Y: East / Right (meters)
-    z: float = 0.0        # +Z: Down (meters) -> Altitude = -z (when z <= 0)
+
+    x: float = 0.0  # +X: North / Forward (meters)
+    y: float = 0.0  # +Y: East / Right (meters)
+    z: float = 0.0  # +Z: Down (meters) -> Altitude = -z (when z <= 0)
     yaw_deg: float = 0.0  # Yaw angle in degrees (0° = Initial launch forward heading)
 
     @property
@@ -41,6 +42,7 @@ class LocalSectionCoordinate:
       - distance_to_goal: Estimated distance remaining to section exit/target (meters)
       - extra_info: Descriptive telemetry string for HUD / logs
     """
+
     section_name: str = "START_PAD"
     x_rel: float = 0.0
     y_rel: float = 0.0
@@ -52,6 +54,7 @@ class LocalSectionCoordinate:
 @dataclasses.dataclass
 class TrajectoryPoint:
     """A timestamped 3D waypoint on the stored flight trajectory."""
+
     timestamp: float
     x: float
     y: float
@@ -76,8 +79,16 @@ class CoordinateManager:
             "HOME": (0.0, 0.0, 0.0),
             "START_QR": (1.0, 0.0, -self.config.TAKEOFF_ALT_M),
             "CORRIDOR_ENTRY": (3.0, 0.0, -self.config.CORRIDOR_ALT_M),
-            "CORRIDOR_EXIT": (3.0 + self.config.CORRIDOR_LENGTH_EST_M, 0.0, -self.config.CORRIDOR_ALT_M),
-            "DELIVERY_CENTER": (3.0 + self.config.CORRIDOR_LENGTH_EST_M + 5.0, 0.0, -self.config.DELIVERY_SEARCH_ALT_M),
+            "CORRIDOR_EXIT": (
+                3.0 + self.config.CORRIDOR_LENGTH_EST_M,
+                0.0,
+                -self.config.CORRIDOR_ALT_M,
+            ),
+            "DELIVERY_CENTER": (
+                3.0 + self.config.CORRIDOR_LENGTH_EST_M + 5.0,
+                0.0,
+                -self.config.DELIVERY_SEARCH_ALT_M,
+            ),
             "TARGET_QR": (0.0, 0.0, 0.0),
         }
 
@@ -93,7 +104,9 @@ class CoordinateManager:
         self.global_pos.z = float(z)
         self.global_pos.yaw_deg = float(yaw)
 
-    def record_path_point(self, state: MissionState, x: float, y: float, z: float, yaw: float) -> None:
+    def record_path_point(
+        self, state: MissionState, x: float, y: float, z: float, yaw: float
+    ) -> None:
         """
         Records every single coordinate along the flight path from start to finish.
         Categorizes points into forward_path or return_path based on mission state.
@@ -129,7 +142,9 @@ class CoordinateManager:
         """Returns the recorded forward path in reverse order as 3D (x, y, z) waypoints for return navigation."""
         return [(pt.x, pt.y, pt.z) for pt in reversed(self.forward_path)]
 
-    def register_landmark(self, name: str, x_global: float, y_global: float, z_global: float) -> None:
+    def register_landmark(
+        self, name: str, x_global: float, y_global: float, z_global: float
+    ) -> None:
         """Saves observed landmark coordinate into the world coordinate map."""
         self.landmarks[name] = (float(x_global), float(y_global), float(z_global))
 
@@ -147,7 +162,11 @@ class CoordinateManager:
         gx, gy, gz = self.global_pos.x, self.global_pos.y, self.global_pos.z
         alt = self.global_pos.altitude
 
-        if state in (MissionState.INIT, MissionState.TAKEOFF, MissionState.SCAN_START_QR):
+        if state in (
+            MissionState.INIT,
+            MissionState.TAKEOFF,
+            MissionState.SCAN_START_QR,
+        ):
             sec = "START_ZONE"
             x_rel = gx
             y_rel = gy

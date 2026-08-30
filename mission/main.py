@@ -22,7 +22,7 @@ from aerothon.vision.redzone_detector import RedZoneDetector
 logging.basicConfig(
     level=logging.INFO,
     format="[%(asctime)s][%(levelname)s][R2D2-Main] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
 )
 log = logging.getLogger("R2D2-Main")
 
@@ -69,7 +69,10 @@ class R2D2SystemRunner:
         log.info("SLAM Loop started.")
         while self.running:
             # Simulate forward displacement
-            if self.fsm.state in [R2D2MissionState.ENTER_CORRIDOR, R2D2MissionState.FOLLOW_CORRIDOR]:
+            if self.fsm.state in [
+                R2D2MissionState.ENTER_CORRIDOR,
+                R2D2MissionState.FOLLOW_CORRIDOR,
+            ]:
                 self._sim_x += 0.15
 
             z_alt = 5.0 if self.fsm.state != R2D2MissionState.LAND else 0.0

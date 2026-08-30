@@ -18,16 +18,26 @@ class SLAMManager:
         self.tracking_lost_count = 0
         self.max_lost_frames = 15
 
-    def process_frame(self, x: float, y: float, z: float, yaw: float, valid_features: int = 50) -> PoseEstimate:
+    def process_frame(
+        self, x: float, y: float, z: float, yaw: float, valid_features: int = 50
+    ) -> PoseEstimate:
         """Processes visual feature count and updates estimated pose."""
         tracking_ok = valid_features >= 10
         if not tracking_ok:
             self.tracking_lost_count += 1
-            log.warning(f"SLAM feature tracking low ({valid_features} features). Lost count: {self.tracking_lost_count}")
+            log.warning(
+                f"SLAM feature tracking low ({valid_features} features). Lost count: {self.tracking_lost_count}"
+            )
         else:
             self.tracking_lost_count = 0
 
-        pose = self.estimator.update_pose(x, y, z, yaw=yaw, tracking_ok=(self.tracking_lost_count < self.max_lost_frames))
+        pose = self.estimator.update_pose(
+            x,
+            y,
+            z,
+            yaw=yaw,
+            tracking_ok=(self.tracking_lost_count < self.max_lost_frames),
+        )
         return pose
 
     def is_tracking_healthy(self) -> bool:

@@ -15,7 +15,6 @@ from aerothon.slam.pose_estimator import PoseEstimate
 
 
 class TestR2D2Architecture(unittest.TestCase):
-
     def test_perception_manager_aggregation(self):
         pm = PerceptionManager()
         result = pm.update(
@@ -23,7 +22,7 @@ class TestR2D2Architecture(unittest.TestCase):
             banner_distance=2.5,
             qr_codes=[{"id": "DELIVERY_TARGET_A", "center_x": 300, "center_y": 200}],
             obstacles={"left": 1.2, "forward": 4.0, "right": 2.8},
-            corridor_offset=0.2
+            corridor_offset=0.2,
         )
         self.assertTrue(result.banner_detected)
         self.assertEqual(result.banner_center, (320, 240))
@@ -45,7 +44,7 @@ class TestR2D2Architecture(unittest.TestCase):
 
     def test_obstacle_avoidance_thresholds(self):
         avoid = ObstacleAvoidance(safe_dist_m=2.0, critical_stop_m=0.8)
-        
+
         # Clear path
         p_clear = PerceptionResult(obstacles={"forward": 3.5})
         self.assertEqual(avoid.evaluate_clearance(p_clear), "CLEAR")

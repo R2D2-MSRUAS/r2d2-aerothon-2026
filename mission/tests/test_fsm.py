@@ -15,7 +15,6 @@ from aerothon.vision import MockCamera, PerceptionPipeline
 
 
 class TestMissionFSM(unittest.TestCase):
-
     def test_fsm_takeoff_to_scan_qr(self) -> None:
         fc = MockFlightController()
         cam = MockCamera()
@@ -41,7 +40,12 @@ class TestMissionFSM(unittest.TestCase):
         class MockPerception(PerceptionPipeline):
             def perceive(self, bgr_in, depth_in):
                 out = super().perceive(bgr_in, depth_in)
-                out["qr_codes"] = [("DELIVERY_ZONE_B", np.array([[200, 200], [300, 200], [300, 300], [200, 300]]))]
+                out["qr_codes"] = [
+                    (
+                        "DELIVERY_ZONE_B",
+                        np.array([[200, 200], [300, 200], [300, 300], [200, 300]]),
+                    )
+                ]
                 return out
 
         fsm.perception = MockPerception(config=fsm.config, enable_yolo=False)
@@ -62,15 +66,17 @@ class TestMissionFSM(unittest.TestCase):
         class ObstaclePerception(PerceptionPipeline):
             def perceive(self, bgr_in, depth_in):
                 out = super().perceive(bgr_in, depth_in)
-                out["obstacles"] = [{
-                    "cx": 320,
-                    "cy": 240,
-                    "radius": 40,
-                    "bbox": (280, 200, 80, 80),
-                    "dist_m": 0.5,
-                    "action": "STOP",
-                    "source": "mock",
-                }]
+                out["obstacles"] = [
+                    {
+                        "cx": 320,
+                        "cy": 240,
+                        "radius": 40,
+                        "bbox": (280, 200, 80, 80),
+                        "dist_m": 0.5,
+                        "action": "STOP",
+                        "source": "mock",
+                    }
+                ]
                 return out
 
         fsm.perception = ObstaclePerception(config=fsm.config, enable_yolo=False)
@@ -100,7 +106,12 @@ class TestMissionFSM(unittest.TestCase):
             def perceive(self, bgr_in, depth_in):
                 out = super().perceive(bgr_in, depth_in)
                 if self.mode == "start_qr":
-                    out["qr_codes"] = [(target_qr, np.array([[300, 200], [340, 200], [340, 240], [300, 240]]))]
+                    out["qr_codes"] = [
+                        (
+                            target_qr,
+                            np.array([[300, 200], [340, 200], [340, 240], [300, 240]]),
+                        )
+                    ]
                 elif self.mode == "banner":
                     out["banner_box"] = (300, 200, 40, 20)
                     out["fwd_dist_m"] = 2.0
@@ -109,7 +120,12 @@ class TestMissionFSM(unittest.TestCase):
                     out["d_right_wall"] = 1.75
                     out["fwd_dist_m"] = 10.0
                 elif self.mode == "target_qr":
-                    out["qr_codes"] = [(target_qr, np.array([[320, 240], [340, 240], [340, 260], [320, 260]]))]
+                    out["qr_codes"] = [
+                        (
+                            target_qr,
+                            np.array([[320, 240], [340, 240], [340, 260], [320, 260]]),
+                        )
+                    ]
                 return out
 
         mock_percept = FullMissionPerception()

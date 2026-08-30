@@ -15,18 +15,19 @@ log = logging.getLogger("AeroTHON2026.FSM")
 
 class R2D2MissionState(Enum):
     """Standardized R2D2 FSM State Machine States."""
-    INIT             = auto()
-    TAKEOFF          = auto()
-    SCAN_START_QR    = auto()
-    FIND_BANNER      = auto()
-    ENTER_CORRIDOR   = auto()
-    FOLLOW_CORRIDOR  = auto()
-    SCAN_TARGET_QR   = auto()
-    ALIGN_FOR_DROP   = auto()
-    DROP_PAYLOAD     = auto()
-    RETURN           = auto()
-    LAND             = auto()
-    COMPLETE         = auto()
+
+    INIT = auto()
+    TAKEOFF = auto()
+    SCAN_START_QR = auto()
+    FIND_BANNER = auto()
+    ENTER_CORRIDOR = auto()
+    FOLLOW_CORRIDOR = auto()
+    SCAN_TARGET_QR = auto()
+    ALIGN_FOR_DROP = auto()
+    DROP_PAYLOAD = auto()
+    RETURN = auto()
+    LAND = auto()
+    COMPLETE = auto()
 
 
 class MissionFSM:
@@ -43,7 +44,9 @@ class MissionFSM:
         self.state = new_state
         self.state_start_time = time.time()
 
-    def update(self, perception: PerceptionResult, pose: PoseEstimate) -> R2D2MissionState:
+    def update(
+        self, perception: PerceptionResult, pose: PoseEstimate
+    ) -> R2D2MissionState:
         """Evaluates perception results and current pose to transition states."""
         elapsed = time.time() - self.state_start_time
 
@@ -98,7 +101,9 @@ class MissionFSM:
             if pose.position[0] <= 1.0 or elapsed > 15.0:
                 self.transition_to(R2D2MissionState.LAND)
 
-        elif self.state == R2D2MissionState.LAND and (abs(pose.position[2]) < 0.2 or elapsed > 10.0):
+        elif self.state == R2D2MissionState.LAND and (
+            abs(pose.position[2]) < 0.2 or elapsed > 10.0
+        ):
             self.transition_to(R2D2MissionState.COMPLETE)
 
         return self.state

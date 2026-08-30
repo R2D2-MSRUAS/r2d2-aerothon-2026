@@ -13,10 +13,15 @@ class PoseEstimate:
     3D Pose Estimate published by Visual-Inertial Odometry / SLAM pipeline.
     Passed to Navigation and MAVLink ExternalNav interfaces.
     """
-    position: tuple[float, float, float] = (0.0, 0.0, 0.0)      # (x, y, z) in meters
-    orientation: tuple[float, float, float] = (0.0, 0.0, 0.0)   # (roll, pitch, yaw) in deg
+
+    position: tuple[float, float, float] = (0.0, 0.0, 0.0)  # (x, y, z) in meters
+    orientation: tuple[float, float, float] = (
+        0.0,
+        0.0,
+        0.0,
+    )  # (roll, pitch, yaw) in deg
     timestamp: float = 0.0
-    status: str = "TRACKING_OK"                                # TRACKING_OK or TRACKING_BROKEN
+    status: str = "TRACKING_OK"  # TRACKING_OK or TRACKING_BROKEN
 
 
 class PoseEstimator:
@@ -33,7 +38,7 @@ class PoseEstimator:
         roll: float = 0.0,
         pitch: float = 0.0,
         yaw: float = 0.0,
-        tracking_ok: bool = True
+        tracking_ok: bool = True,
     ) -> PoseEstimate:
         """Updates and returns current pose estimate."""
         status = "TRACKING_OK" if tracking_ok else "TRACKING_BROKEN"
@@ -41,6 +46,6 @@ class PoseEstimator:
             position=(x, y, z),
             orientation=(roll, pitch, yaw),
             timestamp=time.time(),
-            status=status
+            status=status,
         )
         return self.current_pose

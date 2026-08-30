@@ -31,11 +31,15 @@ class FlightControllerInterface(abc.ABC):
         """Returns (x_north, y_east, z_down, yaw_deg)."""
 
     @abc.abstractmethod
-    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
+    def send_body_velocity(
+        self, vx: float, vy: float, vz: float, duration: float = 0.2
+    ) -> None:
         """Sends velocity setpoint in Body-Fixed Frame (vx: forward, vy: right, vz: down)."""
 
     @abc.abstractmethod
-    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
+    def send_local_velocity(
+        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
+    ) -> None:
         """Sends velocity setpoint in Local World NED Frame."""
 
     @abc.abstractmethod
@@ -91,7 +95,9 @@ class MockFlightController(FlightControllerInterface):
     def get_position_ned(self) -> tuple[float, float, float, float]:
         return (self.sim_x, self.sim_y, self.sim_z, self.sim_yaw)
 
-    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
+    def send_body_velocity(
+        self, vx: float, vy: float, vz: float, duration: float = 0.2
+    ) -> None:
         vx = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vx))
         vy = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vy))
         vz = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vz))
@@ -103,13 +109,19 @@ class MockFlightController(FlightControllerInterface):
         self.sim_x += gx * duration
         self.sim_y += gy * duration
         self.sim_z += vz * duration
-        self.command_log.append(f"BODY_VEL vx={vx:.2f} vy={vy:.2f} vz={vz:.2f} dt={duration:.2f}")
+        self.command_log.append(
+            f"BODY_VEL vx={vx:.2f} vy={vy:.2f} vz={vz:.2f} dt={duration:.2f}"
+        )
 
-    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
+    def send_local_velocity(
+        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
+    ) -> None:
         self.sim_x += vx_n * duration
         self.sim_y += vy_e * duration
         self.sim_z += vz_d * duration
-        self.command_log.append(f"LOCAL_VEL vx={vx_n:.2f} vy={vy_e:.2f} vz={vz_d:.2f} dt={duration:.2f}")
+        self.command_log.append(
+            f"LOCAL_VEL vx={vx_n:.2f} vy={vy_e:.2f} vz={vz_d:.2f} dt={duration:.2f}"
+        )
 
     def arm_and_takeoff(self, target_alt: float) -> bool:
         self.armed = True
@@ -165,7 +177,9 @@ class MAVLinkFlightController(FlightControllerInterface):
     Real MAVLink Flight Controller Interface with strict timeout bounds on all loops.
     """
 
-    def __init__(self, connection_string: str, config: MissionConfig = DEFAULT_CONFIG) -> None:
+    def __init__(
+        self, connection_string: str, config: MissionConfig = DEFAULT_CONFIG
+    ) -> None:
         self.config = config
         self.connection_string = connection_string
         self._vehicle: Any = None
@@ -173,7 +187,10 @@ class MAVLinkFlightController(FlightControllerInterface):
 
     def _connect(self) -> None:
         from dronekit import connect as dk_connect  # type: ignore
-        log.info(f"[FC] Connecting to Flight Controller at '{self.connection_string}'...")
+
+        log.info(
+            f"[FC] Connecting to Flight Controller at '{self.connection_string}'..."
+        )
         start_time = time.time()
         self._vehicle = dk_connect(
             self.connection_string,
@@ -188,13 +205,19 @@ class MAVLinkFlightController(FlightControllerInterface):
             return (0.0, 0.0, 0.0, 0.0)
         loc = self._vehicle.location.local_frame
         alt = float(self._vehicle.location.global_relative_frame.alt or 0.0)
-        yaw = float(self._vehicle.attitude.yaw * 180.0 / math.pi) if self._vehicle.attitude else 0.0
+        yaw = (
+            float(self._vehicle.attitude.yaw * 180.0 / math.pi)
+            if self._vehicle.attitude
+            else 0.0
+        )
         x = float(loc.north) if loc and loc.north is not None else 0.0
         y = float(loc.east) if loc and loc.east is not None else 0.0
         z = -alt
         return (x, y, z, yaw)
 
-    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
+    def send_body_velocity(
+        self, vx: float, vy: float, vz: float, duration: float = 0.2
+    ) -> None:
         if self._vehicle is None:
             return
         from pymavlink import mavutil  # type: ignore
@@ -204,32 +227,52 @@ class MAVLinkFlightController(FlightControllerInterface):
         vz = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vz))
 
         msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
-            0, 0, 0,
+            0,
+            0,
+            0,
             mavutil.mavlink.MAV_FRAME_BODY_NED,
             0b0000111111000111,
-            0, 0, 0,
-            vx, vy, vz,
-            0, 0, 0,
-            0, 0,
+            0,
+            0,
+            0,
+            vx,
+            vy,
+            vz,
+            0,
+            0,
+            0,
+            0,
+            0,
         )
         end_time = time.time() + duration
         while time.time() < end_time:
             self._vehicle.send_mavlink(msg)
             time.sleep(0.1)
 
-    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
+    def send_local_velocity(
+        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
+    ) -> None:
         if self._vehicle is None:
             return
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
-            0, 0, 0,
+            0,
+            0,
+            0,
             mavutil.mavlink.MAV_FRAME_LOCAL_NED,
             0b0000111111000111,
-            0, 0, 0,
-            vx_n, vy_e, vz_d,
-            0, 0, 0,
-            0, 0,
+            0,
+            0,
+            0,
+            vx_n,
+            vy_e,
+            vz_d,
+            0,
+            0,
+            0,
+            0,
+            0,
         )
         end_time = time.time() + duration
         while time.time() < end_time:
@@ -241,7 +284,9 @@ class MAVLinkFlightController(FlightControllerInterface):
             return False
         from dronekit import VehicleMode  # type: ignore
 
-        log.info(f"[FC] Setting mode GUIDED and arming (Timeout: {self.config.ARM_TIMEOUT_S}s)...")
+        log.info(
+            f"[FC] Setting mode GUIDED and arming (Timeout: {self.config.ARM_TIMEOUT_S}s)..."
+        )
         self._vehicle.mode = VehicleMode("GUIDED")
         self._vehicle.armed = True
 
@@ -252,7 +297,9 @@ class MAVLinkFlightController(FlightControllerInterface):
                 return False
             time.sleep(0.3)
 
-        log.info(f"[FC] Taking off to {target_alt:.1f} m (Timeout: {self.config.TAKEOFF_TIMEOUT_S}s)...")
+        log.info(
+            f"[FC] Taking off to {target_alt:.1f} m (Timeout: {self.config.TAKEOFF_TIMEOUT_S}s)..."
+        )
         self._vehicle.simple_takeoff(target_alt)
 
         climb_start = time.time()
@@ -279,9 +326,17 @@ class MAVLinkFlightController(FlightControllerInterface):
         self._vehicle.simple_goto(target)
 
         alt_start = time.time()
-        while abs(float(self._vehicle.location.global_relative_frame.alt or 0.0) - target_alt) > self.config.ALTITUDE_TOLERANCE_M:
+        while (
+            abs(
+                float(self._vehicle.location.global_relative_frame.alt or 0.0)
+                - target_alt
+            )
+            > self.config.ALTITUDE_TOLERANCE_M
+        ):
             if time.time() - alt_start > self.config.ALTITUDE_CHANGE_TIMEOUT_S:
-                log.warning("[FC TIMEOUT] Altitude transition timed out; proceeding with current altitude.")
+                log.warning(
+                    "[FC TIMEOUT] Altitude transition timed out; proceeding with current altitude."
+                )
                 return False
             time.sleep(0.2)
         return True
@@ -292,14 +347,17 @@ class MAVLinkFlightController(FlightControllerInterface):
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.command_long_encode(
-            0, 0,
+            0,
+            0,
             mavutil.mavlink.MAV_CMD_CONDITION_YAW,
             0,
             heading_deg,
             self.config.YAW_RATE_DPS,
             1 if relative else 0,
             1 if relative else 0,
-            0, 0, 0,
+            0,
+            0,
+            0,
         )
         self._vehicle.send_mavlink(msg)
         time.sleep(1.0)
@@ -310,12 +368,17 @@ class MAVLinkFlightController(FlightControllerInterface):
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.command_long_encode(
-            0, 0,
+            0,
+            0,
             mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
             0,
             self.config.WINCH_SERVO_CHANNEL,
             pwm_us,
-            0, 0, 0, 0, 0,
+            0,
+            0,
+            0,
+            0,
+            0,
         )
         self._vehicle.send_mavlink(msg)
 
@@ -335,7 +398,9 @@ class MAVLinkFlightController(FlightControllerInterface):
             return False
         from dronekit import VehicleMode  # type: ignore
 
-        log.info(f"[FC] Switching to LAND mode (Timeout: {self.config.LANDING_TIMEOUT_S}s)...")
+        log.info(
+            f"[FC] Switching to LAND mode (Timeout: {self.config.LANDING_TIMEOUT_S}s)..."
+        )
         self._vehicle.mode = VehicleMode("LAND")
         land_start = time.time()
         while float(self._vehicle.location.global_relative_frame.alt or 0.0) > 0.15:
@@ -370,16 +435,22 @@ def create_flight_controller(
         return MockFlightController(config=config)
 
     try:
-        return MAVLinkFlightController(connection_string=connection_string, config=config)
+        return MAVLinkFlightController(
+            connection_string=connection_string, config=config
+        )
     except Exception as err:  # noqa: BLE001
-        log.error(f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController.")
+        log.error(
+            f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController."
+        )
         return MockFlightController(config=config)
 
 
 # ===========================================================================
 # WINCH DEPLOYMENT & COG COMPENSATION SEQUENCE
 # ===========================================================================
-def execute_winch_delivery(fc: FlightControllerInterface, config: MissionConfig = DEFAULT_CONFIG) -> None:
+def execute_winch_delivery(
+    fc: FlightControllerInterface, config: MissionConfig = DEFAULT_CONFIG
+) -> None:
     """
     Precision winch drop sequence:
       1. Controlled lower
@@ -408,7 +479,11 @@ def execute_winch_delivery(fc: FlightControllerInterface, config: MissionConfig 
     log.info("[WINCH] Hoist sequence completed.")
 
     # Feed-forward CoG shift compensation: delta_cg = (m_payload * offset) / m_drone_empty
-    cg_shift_m = (config.PAYLOAD_MASS_KG * config.PAYLOAD_COG_OFFSET_X_M) / config.DRONE_EMPTY_MASS_KG
-    log.info(f"[COG] Post-drop CoG shift = {cg_shift_m * 1000.0:.2f} mm. Applying feed-forward forward pitch bias.")
+    cg_shift_m = (
+        config.PAYLOAD_MASS_KG * config.PAYLOAD_COG_OFFSET_X_M
+    ) / config.DRONE_EMPTY_MASS_KG
+    log.info(
+        f"[COG] Post-drop CoG shift = {cg_shift_m * 1000.0:.2f} mm. Applying feed-forward forward pitch bias."
+    )
     fc.send_body_velocity(vx=cg_shift_m * 0.8, vy=0.0, vz=0.0, duration=1.5)
     time.sleep(0.5)

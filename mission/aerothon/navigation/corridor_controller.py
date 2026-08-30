@@ -26,10 +26,10 @@ class CorridorController:
 
         # Calculate imbalance: positive means closer to left wall
         imbalance = right_dist - left_dist
-        
+
         # Apply proportional gain for smooth centering
         vy = self.k_p * imbalance
-        
+
         # Clamp maximum lateral velocity to 0.6 m/s for safety
         vy = max(-0.6, min(0.6, vy))
         return vy

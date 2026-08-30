@@ -3,7 +3,6 @@ Multi-Stage QR Code Detector & Decoder
 R2D2 Vision Subsystem Component
 """
 
-
 import cv2
 import numpy as np
 
@@ -26,6 +25,7 @@ class QRDetector:
         # PyZbar Attempt
         try:
             from pyzbar.pyzbar import decode as zbar_decode
+
             decoded_objs = zbar_decode(gray)
             for obj in decoded_objs:
                 if obj.type == "QRCODE":
@@ -34,19 +34,30 @@ class QRDetector:
                         pts = [[p.x, p.y] for p in obj.polygon]
                         cx = sum(p[0] for p in pts) / len(pts)
                         cy = sum(p[1] for p in pts) / len(pts)
-                        results.append({"id": text, "center_x": cx, "center_y": cy, "bbox": pts})
+                        results.append(
+                            {"id": text, "center_x": cx, "center_y": cy, "bbox": pts}
+                        )
             if results:
                 return results
         except Exception:  # noqa: BLE001, S110
             pass
 
         # OpenCV Fallback
-        ok, decoded_info, points, _ = self.opencv_detector.detectAndDecodeMulti(bgr_frame)
+        ok, decoded_info, points, _ = self.opencv_detector.detectAndDecodeMulti(
+            bgr_frame
+        )
         if ok and decoded_info and points is not None:
             for text, pts in zip(decoded_info, points):
                 if text:
                     cx = sum(p[0] for p in pts) / len(pts)
                     cy = sum(p[1] for p in pts) / len(pts)
-                    results.append({"id": text, "center_x": cx, "center_y": cy, "bbox": pts.tolist()})
+                    results.append(
+                        {
+                            "id": text,
+                            "center_x": cx,
+                            "center_y": cy,
+                            "bbox": pts.tolist(),
+                        }
+                    )
 
         return results

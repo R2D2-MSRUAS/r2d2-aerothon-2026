@@ -28,7 +28,9 @@ class MAVLinkInterface:
         self.mode = mode_name
         return True
 
-    def send_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.1) -> None:
+    def send_velocity(
+        self, vx: float, vy: float, vz: float, duration: float = 0.1
+    ) -> None:
         """
         Sends SET_POSITION_TARGET_LOCAL_NED velocity setpoints.
         vx: forward (m/s), vy: right (m/s), vz: down (m/s)

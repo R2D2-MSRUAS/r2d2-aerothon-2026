@@ -15,7 +15,6 @@ from aerothon.coordinates import (
 
 
 class TestCoordinates(unittest.TestCase):
-
     def test_global_coordinate_altitude(self) -> None:
         g = GlobalCoordinate(x=10.0, y=-5.0, z=-5.0, yaw_deg=90.0)
         self.assertEqual(g.altitude, 5.0)

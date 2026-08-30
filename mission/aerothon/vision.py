@@ -29,6 +29,7 @@ log = logging.getLogger("AeroTHON2026.Vision")
 
 DEPTH_UNKNOWN_M = float("inf")
 
+
 # ===========================================================================
 # CAMERA INTERFACE & IMPLEMENTATIONS (SAFE / LAZY)
 # ===========================================================================
@@ -81,7 +82,9 @@ class MockCamera(CameraInterface):
 class WebcamCamera(CameraInterface):
     """Standard OpenCV webcam capture with synthetic flat depth."""
 
-    def __init__(self, camera_index: int = 0, width: int = 640, height: int = 480) -> None:
+    def __init__(
+        self, camera_index: int = 0, width: int = 640, height: int = 480
+    ) -> None:
         self.camera_index = camera_index
         self.width = width
         self.height = height
@@ -117,7 +120,13 @@ class WebcamCamera(CameraInterface):
 class OakDCamera(CameraInterface):
     """OAK-D Lite DepthAI camera pipeline (Lazy initialization)."""
 
-    def __init__(self, rgb_fps: int = 30, depth_fps: int = 30, width: int = 640, height: int = 480) -> None:
+    def __init__(
+        self,
+        rgb_fps: int = 30,
+        depth_fps: int = 30,
+        width: int = 640,
+        height: int = 480,
+    ) -> None:
         self.rgb_fps = rgb_fps
         self.depth_fps = depth_fps
         self.width = width
@@ -134,6 +143,7 @@ class OakDCamera(CameraInterface):
         self._initialized = True
         try:
             import depthai as dai  # type: ignore
+
             pipeline = dai.Pipeline()
 
             cam_rgb = pipeline.create(dai.node.ColorCamera)
@@ -145,7 +155,9 @@ class OakDCamera(CameraInterface):
             mono_left = pipeline.create(dai.node.MonoCamera)
             mono_right = pipeline.create(dai.node.MonoCamera)
             mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-            mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
+            mono_right.setResolution(
+                dai.MonoCameraProperties.SensorResolution.THE_400_P
+            )
             mono_left.setCamera("left")
             mono_right.setCamera("right")
             mono_left.setFps(self.depth_fps)
@@ -172,10 +184,14 @@ class OakDCamera(CameraInterface):
 
             self._device = dai.Device(pipeline)
             self._q_rgb = self._device.getOutputQueue("rgb", maxSize=4, blocking=False)
-            self._q_depth = self._device.getOutputQueue("depth", maxSize=4, blocking=False)
+            self._q_depth = self._device.getOutputQueue(
+                "depth", maxSize=4, blocking=False
+            )
             log.info("OAK-D Hardware stereo pipeline connected successfully.")
         except Exception as err:  # noqa: BLE001
-            log.warning(f"OAK-D initialization failed ({err}). Falling back to WebcamCamera.")
+            log.warning(
+                f"OAK-D initialization failed ({err}). Falling back to WebcamCamera."
+            )
             self._fallback = WebcamCamera(width=self.width, height=self.height)
 
     def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
@@ -202,6 +218,7 @@ class OakDCamera(CameraInterface):
             del self._device
             self._device = None
 
+
 class ThreeCameraManager(CameraInterface):
     """
     3-Camera Vision Suite Manager:
@@ -210,9 +227,12 @@ class ThreeCameraManager(CameraInterface):
       3. Secondary Camera (Skydroid FPV Mini): FPV pilot monitoring & Return pass safety
     """
 
-    def __init__(self, forward_cam: CameraInterface | None = None,
-                 downward_cam: CameraInterface | None = None,
-                 fpv_cam: CameraInterface | None = None) -> None:
+    def __init__(
+        self,
+        forward_cam: CameraInterface | None = None,
+        downward_cam: CameraInterface | None = None,
+        fpv_cam: CameraInterface | None = None,
+    ) -> None:
         self.forward_cam = forward_cam or OakDCamera()
         self.downward_cam = downward_cam or WebcamCamera(camera_index=1)
         self.fpv_cam = fpv_cam or WebcamCamera(camera_index=2)
@@ -283,19 +303,25 @@ def depth_action(distance_m: float, config: MissionConfig = DEFAULT_CONFIG) -> s
 PEOPLE_SHAPES = ["circle", "ellipse", "hexagon", "rounded_box"]
 
 
-def draw_circle(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
+def draw_circle(
+    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
+) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     radius = max((x2 - x1), (y2 - y1)) // 2
     cv2.circle(img, (cx, cy), radius, color, 3)
 
 
-def draw_ellipse(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
+def draw_ellipse(
+    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
+) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     ax, ay = max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2)
     cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 360, color, 3)
 
 
-def draw_hexagon(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
+def draw_hexagon(
+    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
+) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     w, h = max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2)
     pts = []
@@ -308,7 +334,9 @@ def draw_hexagon(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tup
     cv2.polylines(img, [poly], isClosed=True, color=color, thickness=3)
 
 
-def draw_rounded_box(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple, r: int = 15) -> None:
+def draw_rounded_box(
+    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple, r: int = 15
+) -> None:
     r = min(r, max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2))
     cv2.line(img, (x1 + r, y1), (x2 - r, y1), color, 3)
     cv2.line(img, (x1 + r, y2), (x2 - r, y2), color, 3)
@@ -398,13 +426,16 @@ def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     results: list[tuple[str, np.ndarray]] = []
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4)
+    thresh = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4
+    )
 
     stages = [(gray, 1.0), (upscaled, 2.5), (thresh, 1.0)]
 
     # 1. Try pyzbar if available
     try:
         from pyzbar.pyzbar import decode as zbar_decode  # type: ignore
+
         for img_data, sc in stages:
             for obj in zbar_decode(img_data):
                 if obj.type != "QRCODE":
@@ -412,7 +443,9 @@ def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
                 text = obj.data.decode("utf-8", errors="ignore").strip()
                 if not text:
                     continue
-                quad = np.array([[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int)
+                quad = np.array(
+                    [[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int
+                )
                 results.append((text, quad))
             if results:
                 return results
@@ -422,7 +455,11 @@ def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     # 2. OpenCV fallback
     qr_detector = cv2.QRCodeDetector()
     for img_data, sc in stages:
-        var = cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR) if img_data.ndim == 2 else img_data
+        var = (
+            cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR)
+            if img_data.ndim == 2
+            else img_data
+        )
         ok, decoded_info, points, _ = qr_detector.detectAndDecodeMulti(var)
         if ok and points is not None and decoded_info:
             for t, pts in zip(decoded_info, points):
@@ -446,7 +483,11 @@ def find_red_zones(bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
     h, s, v = cv2.split(hsv)
     mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
     for lo, hi in RED_HUE_RANGES:
-        mask |= (((h >= lo) & (h <= hi) & (s >= RED_SAT_MIN) & (v >= RED_VAL_MIN)).astype(np.uint8)) * 255
+        mask |= (
+            ((h >= lo) & (h <= hi) & (s >= RED_SAT_MIN) & (v >= RED_VAL_MIN)).astype(
+                np.uint8
+            )
+        ) * 255
     kernel = np.ones((9, 9), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.dilate(mask, kernel, iterations=1)
@@ -474,7 +515,9 @@ def detect_obstacles_with_depth(
 
     _, _, val = cv2.split(hsv)
     dark_mask = ((val <= 90).astype(np.uint8)) * 255
-    contours, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(
+        dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
 
     obstacles = []
     for c in contours:
@@ -491,16 +534,18 @@ def detect_obstacles_with_depth(
         cx, cy, radius = int(cx), int(cy), int(radius)
         bbox = (cx - radius, cy - radius, radius * 2, radius * 2)
         dist = depth_at_bbox(depth_mm, bbox)
-        obstacles.append({
-            "cx": cx,
-            "cy": cy,
-            "radius": radius,
-            "bbox": bbox,
-            "dist_m": dist,
-            "action": depth_action(dist, config),
-            "source": "classical_cv",
-            "class_name": "obstacle",
-        })
+        obstacles.append(
+            {
+                "cx": cx,
+                "cy": cy,
+                "radius": radius,
+                "bbox": bbox,
+                "dist_m": dist,
+                "action": depth_action(dist, config),
+                "source": "classical_cv",
+                "class_name": "obstacle",
+            }
+        )
 
     if yolo_results is not None and yolo_model is not None:
         for r in yolo_results:
@@ -516,17 +561,19 @@ def detect_obstacles_with_depth(
                 bw, bh = x2 - x1, y2 - y1
                 bbox = (x1, y1, bw, bh)
                 dist = depth_at_bbox(depth_mm, bbox)
-                obstacles.append({
-                    "cx": x1 + bw // 2,
-                    "cy": y1 + bh // 2,
-                    "radius": max(bw, bh) // 2,
-                    "bbox": bbox,
-                    "dist_m": dist,
-                    "action": depth_action(dist, config),
-                    "source": "yolo",
-                    "class_name": name,
-                    "conf": conf,
-                })
+                obstacles.append(
+                    {
+                        "cx": x1 + bw // 2,
+                        "cy": y1 + bh // 2,
+                        "radius": max(bw, bh) // 2,
+                        "bbox": bbox,
+                        "dist_m": dist,
+                        "action": depth_action(dist, config),
+                        "source": "yolo",
+                        "class_name": name,
+                        "conf": conf,
+                    }
+                )
 
     return obstacles
 
@@ -539,7 +586,9 @@ class PerceptionPipeline:
     Perception Engine with lazy YOLO loading and pure perception dispatch.
     """
 
-    def __init__(self, config: MissionConfig = DEFAULT_CONFIG, enable_yolo: bool = True) -> None:
+    def __init__(
+        self, config: MissionConfig = DEFAULT_CONFIG, enable_yolo: bool = True
+    ) -> None:
         self.config = config
         self.enable_yolo = enable_yolo
         self._yolo_model: Any = None
@@ -551,10 +600,13 @@ class PerceptionPipeline:
         self._yolo_initialized = True
         try:
             from ultralytics import YOLO  # type: ignore
+
             self._yolo_model = YOLO("yolov8n.pt")
             log.info("YOLOv8 model loaded on first perception call.")
         except Exception as err:  # noqa: BLE001
-            log.warning(f"Could not load YOLOv8 model ({err}). Using classical CV only.")
+            log.warning(
+                f"Could not load YOLOv8 model ({err}). Using classical CV only."
+            )
             self._yolo_model = None
 
     def perceive(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
@@ -583,18 +635,22 @@ class PerceptionPipeline:
                         yolo_all.append((name, conf, bbox, dist))
                         if name == "person":
                             bw, bh = x2 - x1, y2 - y1
-                            humans.append({
-                                "bbox": bbox,
-                                "dist_m": dist,
-                                "action": depth_action(dist, self.config),
-                                "conf": conf,
-                                "cx": x1 + bw // 2,
-                                "cy": y1 + bh // 2,
-                            })
+                            humans.append(
+                                {
+                                    "bbox": bbox,
+                                    "dist_m": dist,
+                                    "action": depth_action(dist, self.config),
+                                    "conf": conf,
+                                    "cx": x1 + bw // 2,
+                                    "cy": y1 + bh // 2,
+                                }
+                            )
             except Exception as err:  # noqa: BLE001
                 log.debug(f"YOLO inference error: {err}")
 
-        obstacles = detect_obstacles_with_depth(bgr, depth_mm, self._yolo_model, _yolo_res, self.config)
+        obstacles = detect_obstacles_with_depth(
+            bgr, depth_mm, self._yolo_model, _yolo_res, self.config
+        )
         red_zones = find_red_zones(bgr)
         qr_codes = detect_qr_codes(bgr)
         banner_box = detect_green_banner(bgr, self._yolo_model, _yolo_res)
@@ -617,10 +673,13 @@ class PerceptionPipeline:
         d_right_wall = _get_col_depth(w_f - edge_w, edge_w)
 
         centre_stop = any(
-            o["action"] == "STOP" and abs(o["cx"] - w_f // 2) < col_w // 2 for o in obstacles
+            o["action"] == "STOP" and abs(o["cx"] - w_f // 2) < col_w // 2
+            for o in obstacles
         )
         human_stop = any(h["action"] == "STOP" for h in humans)
-        red_ahead = any(col_w <= (rx + rw // 2) <= col_w * 2 for rx, ry, rw, rh in red_zones)
+        red_ahead = any(
+            col_w <= (rx + rw // 2) <= col_w * 2 for rx, ry, rw, rh in red_zones
+        )
 
         if centre_stop or human_stop or d_centre < self.config.OBS_CRITICAL_STOP_M:
             steering = "STOP"
@@ -668,7 +727,15 @@ def annotate_mission_frame(
     # Red Zones
     for rx, ry, rw, rh in percept.get("red_zones", []):
         cv2.rectangle(out, (rx, ry), (rx + rw, ry + rh), (0, 0, 240), 3)
-        cv2.putText(out, "RED ZONE", (rx, max(15, ry - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 240), 2)
+        cv2.putText(
+            out,
+            "RED ZONE",
+            (rx, max(15, ry - 8)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (0, 0, 240),
+            2,
+        )
 
     # Obstacles
     for obs in percept.get("obstacles", []):
@@ -677,9 +744,21 @@ def annotate_mission_frame(
         cx, cy, rad = obs["cx"], obs["cy"], obs["radius"]
         dist = obs["dist_m"]
         act = obs["action"]
-        col = (0, 220, 0) if act == "CONTINUE" else ((0, 165, 255) if act == "SLOW" else (0, 0, 255))
+        col = (
+            (0, 220, 0)
+            if act == "CONTINUE"
+            else ((0, 165, 255) if act == "SLOW" else (0, 0, 255))
+        )
         cv2.circle(out, (cx, cy), rad, col, 2)
-        cv2.putText(out, f"OBS {dist:.1f}m [{act}]", (cx - rad, max(15, cy - rad - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 2)
+        cv2.putText(
+            out,
+            f"OBS {dist:.1f}m [{act}]",
+            (cx - rad, max(15, cy - rad - 6)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            col,
+            2,
+        )
 
     # YOLO Objects
     for name, conf, (x1, y1, bw, bh), dist in percept.get("yolo_all", []):
@@ -687,7 +766,15 @@ def annotate_mission_frame(
             continue
         col = (255, 200, 0)
         cv2.rectangle(out, (x1, y1), (x1 + bw, y1 + bh), col, 2)
-        cv2.putText(out, f"{name} {conf:.2f} {dist:.1f}m", (x1, max(15, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 2)
+        cv2.putText(
+            out,
+            f"{name} {conf:.2f} {dist:.1f}m",
+            (x1, max(15, y1 - 6)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.45,
+            col,
+            2,
+        )
 
     # Humans with cycling shapes
     for idx, human in enumerate(percept.get("humans", [])):
@@ -698,20 +785,44 @@ def annotate_mission_frame(
         shape_type = PEOPLE_SHAPES[idx % len(PEOPLE_SHAPES)]
         col = (255, 0, 220)
         SHAPE_FUNCS[shape_type](out, x1, y1, x2, y2, col)
-        cv2.putText(out, f"HUMAN [{shape_type}] {dist:.1f}m [{act}]", (x1, max(15, y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, col, 2)
+        cv2.putText(
+            out,
+            f"HUMAN [{shape_type}] {dist:.1f}m [{act}]",
+            (x1, max(15, y1 - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            col,
+            2,
+        )
 
     # Green Banner
     if percept.get("banner_box") is not None:
         bx, by, bw, bh = percept["banner_box"]
         cv2.rectangle(out, (bx, by), (bx + bw, by + bh), (0, 255, 100), 3)
-        cv2.putText(out, "GREEN BANNER", (bx, max(15, by - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 100), 2)
+        cv2.putText(
+            out,
+            "GREEN BANNER",
+            (bx, max(15, by - 8)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 100),
+            2,
+        )
 
     # QR Codes
     for text, quad in percept.get("qr_codes", []):
         cv2.polylines(out, [quad.reshape(-1, 1, 2)], True, (255, 255, 0), 3)
         qx, qy = int(quad[0][0]), int(quad[0][1])
         match_tag = " [TARGET MATCH!]" if (text == target_id and target_id) else ""
-        cv2.putText(out, f"QR: {text[:20]}{match_tag}", (qx, max(15, qy - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
+        cv2.putText(
+            out,
+            f"QR: {text[:20]}{match_tag}",
+            (qx, max(15, qy - 10)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (255, 255, 0),
+            2,
+        )
 
     # Bottom Depth Bars
     bar_y = h - 22
@@ -731,21 +842,61 @@ def annotate_mission_frame(
     for i, (d, tag) in enumerate([(d_l, "LEFT"), (d_c, "CTR"), (d_r, "RIGHT")]):
         x0 = i * col_w3
         cv2.rectangle(out, (x0, bar_y - 10), (x0 + col_w3, bar_y), _bar_c(d), -1)
-        cv2.putText(out, f"{tag}: {d:.1f}m", (x0 + 6, bar_y - 1), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1)
+        cv2.putText(
+            out,
+            f"{tag}: {d:.1f}m",
+            (x0 + 6, bar_y - 1),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.38,
+            (255, 255, 255),
+            1,
+        )
 
     # Steering
     st = percept.get("steering", "FORWARD")
-    st_col = (0, 255, 0) if st == "FORWARD" else ((0, 200, 255) if st in ("LEFT", "RIGHT") else (0, 0, 255))
-    cv2.putText(out, f"STEER: {st}", (w // 2 - 50, h - 35), cv2.FONT_HERSHEY_SIMPLEX, 0.65, st_col, 2)
+    st_col = (
+        (0, 255, 0)
+        if st == "FORWARD"
+        else ((0, 200, 255) if st in ("LEFT", "RIGHT") else (0, 0, 255))
+    )
+    cv2.putText(
+        out,
+        f"STEER: {st}",
+        (w // 2 - 50, h - 35),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.65,
+        st_col,
+        2,
+    )
 
     # Top Telemetry Dashboard
     cv2.rectangle(out, (0, 0), (w, 58), (20, 20, 20), -1)
-    cv2.putText(out, f"STATE: {state.name}", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 240), 2)
-    cv2.putText(out, f"TGT QR: {target_id if target_id else 'SEARCHING'}", (w - 240, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 220, 0), 2)
+    cv2.putText(
+        out,
+        f"STATE: {state.name}",
+        (10, 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 240, 240),
+        2,
+    )
+    cv2.putText(
+        out,
+        f"TGT QR: {target_id if target_id else 'SEARCHING'}",
+        (w - 240, 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 220, 0),
+        2,
+    )
 
     global_str = f"GLOBAL NED: X:{gpos.x:+.1f}m | Y:{gpos.y:+.1f}m | Alt:{gpos.altitude:.1f}m | Yaw:{gpos.yaw_deg:.0f}°"
     local_str = f"LOCAL [{lpos.section_name}]: X_rel:{lpos.x_rel:+.2f}m | Y_lat:{lpos.y_rel:+.2f}m | Rem:{lpos.distance_to_goal:.1f}m"
-    cv2.putText(out, global_str, (10, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 255, 180), 1)
-    cv2.putText(out, local_str, (10, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 200, 150), 1)
+    cv2.putText(
+        out, global_str, (10, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 255, 180), 1
+    )
+    cv2.putText(
+        out, local_str, (10, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 200, 150), 1
+    )
 
     return out
