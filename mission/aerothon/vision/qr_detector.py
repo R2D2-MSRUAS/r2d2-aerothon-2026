@@ -3,7 +3,7 @@ Multi-Stage QR Code Detector & Decoder
 R2D2 Vision Subsystem Component
 """
 
-from typing import Dict, List
+
 import cv2
 import numpy as np
 
@@ -14,7 +14,7 @@ class QRDetector:
     def __init__(self):
         self.opencv_detector = cv2.QRCodeDetector()
 
-    def detect_and_decode(self, bgr_frame: np.ndarray) -> List[Dict[str, float]]:
+    def detect_and_decode(self, bgr_frame: np.ndarray) -> list[dict[str, float]]:
         """
         Returns list of decoded QR dicts: [{'id': str, 'center_x': float, 'center_y': float, 'bbox': list}]
         """
@@ -23,8 +23,6 @@ class QRDetector:
 
         results = []
         gray = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2GRAY)
-        h, w = gray.shape
-
         # PyZbar Attempt
         try:
             from pyzbar.pyzbar import decode as zbar_decode
@@ -39,7 +37,7 @@ class QRDetector:
                         results.append({"id": text, "center_x": cx, "center_y": cy, "bbox": pts})
             if results:
                 return results
-        except Exception:
+        except Exception:  # noqa: BLE001, S110
             pass
 
         # OpenCV Fallback

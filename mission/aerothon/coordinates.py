@@ -13,7 +13,6 @@ from __future__ import annotations
 import dataclasses
 import math
 import time
-from typing import Dict, List, Optional, Tuple
 
 from aerothon.config import DEFAULT_CONFIG, MissionConfig, MissionState
 
@@ -73,7 +72,7 @@ class CoordinateManager:
         self.local_pos = LocalSectionCoordinate()
 
         # Landmark World Coordinate Dictionary
-        self.landmarks: Dict[str, Tuple[float, float, float]] = {
+        self.landmarks: dict[str, tuple[float, float, float]] = {
             "HOME": (0.0, 0.0, 0.0),
             "START_QR": (1.0, 0.0, -self.config.TAKEOFF_ALT_M),
             "CORRIDOR_ENTRY": (3.0, 0.0, -self.config.CORRIDOR_ALT_M),
@@ -83,9 +82,9 @@ class CoordinateManager:
         }
 
         # Trajectory Storage (Both Forward and Backward Paths from Start to Finish)
-        self.forward_path: List[TrajectoryPoint] = []
-        self.return_path: List[TrajectoryPoint] = []
-        self.full_trajectory: List[TrajectoryPoint] = []
+        self.forward_path: list[TrajectoryPoint] = []
+        self.return_path: list[TrajectoryPoint] = []
+        self.full_trajectory: list[TrajectoryPoint] = []
 
     def update_from_fc(self, x: float, y: float, z: float, yaw: float) -> None:
         """Update global state from Flight Controller telemetry."""
@@ -126,7 +125,7 @@ class CoordinateManager:
         else:
             self.return_path.append(pt)
 
-    def get_reverse_return_waypoints(self) -> List[Tuple[float, float, float]]:
+    def get_reverse_return_waypoints(self) -> list[tuple[float, float, float]]:
         """Returns the recorded forward path in reverse order as 3D (x, y, z) waypoints for return navigation."""
         return [(pt.x, pt.y, pt.z) for pt in reversed(self.forward_path)]
 
@@ -140,7 +139,7 @@ class CoordinateManager:
         d_left_wall: float = 0.0,
         d_right_wall: float = 0.0,
         fwd_dist: float = float("inf"),
-        target_qr_box_dist: Optional[float] = None,
+        target_qr_box_dist: float | None = None,
     ) -> LocalSectionCoordinate:
         """
         Calculates real-time local coordinates relative to current section geometry.

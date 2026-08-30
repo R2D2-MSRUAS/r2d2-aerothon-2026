@@ -4,8 +4,6 @@ R2D2 System Architecture Compliance Module
 """
 
 import logging
-import time
-from typing import Tuple
 
 log = logging.getLogger("AeroTHON2026.MAVLink")
 

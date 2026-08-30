@@ -4,7 +4,6 @@ R2D2 System Architecture Compliance Module
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
 
 
 @dataclass
@@ -14,11 +13,11 @@ class PerceptionResult:
     Passed directly to Mission FSM and Navigation Controller.
     """
     banner_detected: bool = False
-    banner_center: Optional[Tuple[int, int]] = None
-    banner_distance: Optional[float] = None
-    qr_codes: List[Dict[str, float]] = field(default_factory=list)
-    obstacles: Dict[str, float] = field(default_factory=lambda: {"forward": float("inf"), "left": float("inf"), "right": float("inf")})
-    red_zones: List[Dict[str, float]] = field(default_factory=list)
+    banner_center: tuple[int, int] | None = None
+    banner_distance: float | None = None
+    qr_codes: list[dict[str, float]] = field(default_factory=list)
+    obstacles: dict[str, float] = field(default_factory=lambda: {"forward": float("inf"), "left": float("inf"), "right": float("inf")})
+    red_zones: list[dict[str, float]] = field(default_factory=list)
     red_zone_detected: bool = False
     corridor_offset: float = 0.0
     corridor_width: float = 3.5
@@ -32,11 +31,11 @@ class PerceptionManager:
 
     def update(
         self,
-        banner_center: Optional[Tuple[int, int]] = None,
-        banner_distance: Optional[float] = None,
-        qr_codes: Optional[List[Dict[str, float]]] = None,
-        obstacles: Optional[Dict[str, float]] = None,
-        red_zones: Optional[List[Dict[str, float]]] = None,
+        banner_center: tuple[int, int] | None = None,
+        banner_distance: float | None = None,
+        qr_codes: list[dict[str, float]] | None = None,
+        obstacles: dict[str, float] | None = None,
+        red_zones: list[dict[str, float]] | None = None,
         corridor_offset: float = 0.0,
     ) -> PerceptionResult:
         """Composes and returns the updated PerceptionResult object."""

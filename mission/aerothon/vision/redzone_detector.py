@@ -3,7 +3,7 @@ Red Zone Forbidden Area Detector
 R2D2 Vision Subsystem Component
 """
 
-from typing import List, Tuple
+
 import cv2
 import numpy as np
 
@@ -15,7 +15,7 @@ class RedZoneDetector:
         self.red_hue_ranges = [((0, 130, 80), (10, 255, 255)), ((170, 130, 80), (180, 255, 255))]
         self.min_area = 500
 
-    def detect(self, bgr_frame: np.ndarray) -> List[Tuple[int, int, int, int]]:
+    def detect(self, bgr_frame: np.ndarray) -> list[tuple[int, int, int, int]]:
         """
         Returns list of red zone bounding boxes [(x, y, w, h)]
         """

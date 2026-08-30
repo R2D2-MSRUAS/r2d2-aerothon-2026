@@ -5,7 +5,6 @@ R2D2 System Architecture Compliance Module
 
 import time
 from dataclasses import dataclass
-from typing import Tuple
 
 
 @dataclass
@@ -14,8 +13,8 @@ class PoseEstimate:
     3D Pose Estimate published by Visual-Inertial Odometry / SLAM pipeline.
     Passed to Navigation and MAVLink ExternalNav interfaces.
     """
-    position: Tuple[float, float, float] = (0.0, 0.0, 0.0)      # (x, y, z) in meters
-    orientation: Tuple[float, float, float] = (0.0, 0.0, 0.0)   # (roll, pitch, yaw) in deg
+    position: tuple[float, float, float] = (0.0, 0.0, 0.0)      # (x, y, z) in meters
+    orientation: tuple[float, float, float] = (0.0, 0.0, 0.0)   # (roll, pitch, yaw) in deg
     timestamp: float = 0.0
     status: str = "TRACKING_OK"                                # TRACKING_OK or TRACKING_BROKEN
 

@@ -5,6 +5,7 @@ R2D2 System Architecture Compliance Module
 
 import logging
 import time
+
 from aerothon.mavlink.interface import MAVLinkInterface
 
 log = logging.getLogger("AeroTHON2026.Payload")

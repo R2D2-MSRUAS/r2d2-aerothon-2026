@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from aerothon.config import DEFAULT_CONFIG, MissionConfig
+from aerothon.config import MissionConfig
 from aerothon.flight_controller import (
     MockFlightController,
     create_flight_controller,
@@ -45,7 +45,7 @@ class TestFlightController(unittest.TestCase):
 
         # Move forward 2 m/s for 1.0s at heading 0 deg (North)
         fc.send_body_velocity(vx=2.0, vy=0.0, vz=0.0, duration=1.0)
-        x, y, z, _ = fc.get_position_ned()
+        x, y, _z, _ = fc.get_position_ned()
         self.assertAlmostEqual(x, 2.0, places=2)
         self.assertAlmostEqual(y, 0.0, places=2)
 

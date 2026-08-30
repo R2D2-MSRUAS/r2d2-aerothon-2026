@@ -7,8 +7,11 @@ from __future__ import annotations
 
 import unittest
 
-from aerothon.config import DEFAULT_CONFIG, MissionState
-from aerothon.coordinates import CoordinateManager, GlobalCoordinate, LocalSectionCoordinate
+from aerothon.config import MissionState
+from aerothon.coordinates import (
+    CoordinateManager,
+    GlobalCoordinate,
+)
 
 
 class TestCoordinates(unittest.TestCase):

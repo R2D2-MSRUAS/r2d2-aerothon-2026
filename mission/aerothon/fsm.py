@@ -21,13 +21,15 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
 
 from aerothon.config import DEFAULT_CONFIG, MissionConfig, MissionState
-from aerothon.coordinates import CoordinateManager, GlobalCoordinate, LocalSectionCoordinate
+from aerothon.coordinates import (
+    CoordinateManager,
+)
 from aerothon.flight_controller import FlightControllerInterface, execute_winch_delivery
 from aerothon.recorder import FlightDataRecorder
 from aerothon.vision import (
@@ -50,9 +52,9 @@ class MissionFSM:
         self,
         fc: FlightControllerInterface,
         camera: CameraInterface,
-        coord_mgr: Optional[CoordinateManager] = None,
-        perception: Optional[PerceptionPipeline] = None,
-        recorder: Optional[FlightDataRecorder] = None,
+        coord_mgr: CoordinateManager | None = None,
+        perception: PerceptionPipeline | None = None,
+        recorder: FlightDataRecorder | None = None,
         config: MissionConfig = DEFAULT_CONFIG,
     ) -> None:
         self.fc = fc
@@ -72,7 +74,7 @@ class MissionFSM:
         self.mission_start_time = time.time()
         self.step_count = 0
 
-    def step(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
+    def step(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
         """
         Executes a single FSM iteration.
         Returns a dict containing telemetry, percepts, state, and coordinates.
@@ -91,7 +93,7 @@ class MissionFSM:
         red_zones = percept["red_zones"]
         qr_codes = percept["qr_codes"]
         banner_box = percept["banner_box"]
-        steering = percept["steering"]
+        _steering = percept["steering"]
         fwd_dist = percept["fwd_dist_m"]
         d_left_w = percept["d_left_wall"]
         d_right_w = percept["d_right_wall"]
@@ -169,7 +171,7 @@ class MissionFSM:
         # ----------------------------------------------------------------
         elif self.state == MissionState.FIND_GREEN_BANNER:
             if banner_box is not None:
-                bx, by, bw, bh = banner_box
+                bx, _by, bw, _bh = banner_box
                 frame_cx = bgr.shape[1] // 2
                 banner_cx = bx + bw // 2
                 banner_dist = depth_at_bbox(depth_mm, banner_box)
@@ -411,7 +413,7 @@ class MissionFSM:
             "percept": percept,
         }
 
-    def run(self, headless: bool = False, max_duration_s: Optional[float] = None) -> None:
+    def run(self, headless: bool = False, max_duration_s: float | None = None) -> None:
         """Runs the continuous mission loop until completion or timeout."""
         start_time = time.time()
         timeout = max_duration_s or self.config.MAX_MISSION_TIME_S

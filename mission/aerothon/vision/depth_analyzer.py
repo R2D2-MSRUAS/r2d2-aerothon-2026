@@ -3,7 +3,7 @@ OAK-D Stereo Depth Analyzer
 R2D2 Vision Subsystem Component
 """
 
-from typing import Dict
+
 import numpy as np
 
 
@@ -13,14 +13,14 @@ class DepthAnalyzer:
     def __init__(self, max_depth_m: float = 10.0):
         self.max_depth_m = max_depth_m
 
-    def analyze_3column_depth(self, depth_mm: np.ndarray) -> Dict[str, float]:
+    def analyze_3column_depth(self, depth_mm: np.ndarray) -> dict[str, float]:
         """
         Calculates median distance in meters for forward (center), left, and right channels.
         """
         if depth_mm is None or depth_mm.size == 0:
             return {"forward": float("inf"), "left": float("inf"), "right": float("inf")}
 
-        h, w = depth_mm.shape
+        _h, w = depth_mm.shape
         col_w = w // 3
 
         left_crop = depth_mm[:, :col_w]

@@ -16,12 +16,10 @@ Tests the entire autonomous mission pipeline:
   - Global (NED) & Local Section coordinate logging
 """
 
-import math
 import os
-import sys
-import time
-import numpy as np
+
 import cv2
+import numpy as np
 
 # Import mission components from drone_mission
 from drone_mission import (
@@ -30,9 +28,8 @@ from drone_mission import (
     FlightController,
     FlightDataRecorder,
     MissionState,
-    annotate_mission_frame,
-    perceive_frame,
     execute_winch_delivery,
+    perceive_frame,
 )
 
 
@@ -103,7 +100,6 @@ def run_synthetic_test(num_steps: int = 120) -> None:
     coord_mgr = CoordinateManager()
     recorder = FlightDataRecorder(log_path="sim_test_flight_log.csv")
 
-    state = MissionState.TAKEOFF
     target_id = "DELIVERY_ZONE_ALPHA"
 
     states_visited = []

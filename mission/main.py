@@ -11,7 +11,7 @@ from aerothon.mavlink.interface import MAVLinkInterface
 from aerothon.mission.fsm import MissionFSM, R2D2MissionState
 from aerothon.navigation.velocity_generator import VelocityGenerator
 from aerothon.payload.winch_control import WinchController
-from aerothon.perception.manager import PerceptionManager, PerceptionResult
+from aerothon.perception.manager import PerceptionManager
 from aerothon.slam.slam_manager import SLAMManager
 from aerothon.vision.banner_detector import BannerDetector
 from aerothon.vision.depth_analyzer import DepthAnalyzer

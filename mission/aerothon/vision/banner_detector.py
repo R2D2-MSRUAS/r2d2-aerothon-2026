@@ -3,7 +3,7 @@ Corridor Entrance Banner Detector
 R2D2 Vision Subsystem Component
 """
 
-from typing import Optional, Tuple
+
 import cv2
 import numpy as np
 
@@ -11,12 +11,12 @@ import numpy as np
 class BannerDetector:
     """Detects green corridor entry banner using HSV color segmentation and morphological filtering."""
 
-    def __init__(self, lower_hsv: Tuple[int, int, int] = (35, 75, 50), upper_hsv: Tuple[int, int, int] = (85, 255, 255)):
+    def __init__(self, lower_hsv: tuple[int, int, int] = (35, 75, 50), upper_hsv: tuple[int, int, int] = (85, 255, 255)):
         self.lower_hsv = np.array(lower_hsv, dtype=np.uint8)
         self.upper_hsv = np.array(upper_hsv, dtype=np.uint8)
         self.min_area = 2500
 
-    def detect(self, bgr_frame: np.ndarray) -> Tuple[Optional[Tuple[int, int]], Optional[Tuple[int, int, int, int]]]:
+    def detect(self, bgr_frame: np.ndarray) -> tuple[tuple[int, int] | None, tuple[int, int, int, int] | None]:
         """
         Returns (banner_center_xy, bounding_box_xywh) or (None, None).
         """

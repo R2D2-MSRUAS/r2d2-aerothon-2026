@@ -16,7 +16,7 @@ import abc
 import logging
 import math
 import time
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from aerothon.config import DEFAULT_CONFIG, MissionConfig
 
@@ -27,59 +27,48 @@ class FlightControllerInterface(abc.ABC):
     """Abstract interface for multirotor flight controller."""
 
     @abc.abstractmethod
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         """Returns (x_north, y_east, z_down, yaw_deg)."""
-        pass
 
     @abc.abstractmethod
     def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
         """Sends velocity setpoint in Body-Fixed Frame (vx: forward, vy: right, vz: down)."""
-        pass
 
     @abc.abstractmethod
     def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
         """Sends velocity setpoint in Local World NED Frame."""
-        pass
 
     @abc.abstractmethod
     def arm_and_takeoff(self, target_alt: float) -> bool:
         """Arms UAS and climbs to target altitude."""
-        pass
 
     @abc.abstractmethod
     def set_altitude(self, target_alt: float) -> bool:
         """Changes altitude to target_alt while holding lateral position."""
-        pass
 
     @abc.abstractmethod
     def set_yaw(self, heading_deg: float, relative: bool = True) -> None:
         """Rotates UAS heading."""
-        pass
 
     @abc.abstractmethod
     def set_winch(self, pwm_us: int) -> None:
         """Commands winch servo PWM pulse."""
-        pass
 
     @abc.abstractmethod
     def stop(self) -> None:
         """Zeroes all body velocity setpoints to hold hover."""
-        pass
 
     @abc.abstractmethod
     def return_to_launch(self) -> None:
         """Initiates RTL failsafe."""
-        pass
 
     @abc.abstractmethod
     def land(self) -> bool:
         """Executes autonomous landing."""
-        pass
 
     @abc.abstractmethod
     def close(self) -> None:
         """Releases flight controller connection."""
-        pass
 
 
 class MockFlightController(FlightControllerInterface):
@@ -96,10 +85,10 @@ class MockFlightController(FlightControllerInterface):
         self.sim_yaw = 0.0
         self.armed = False
         self.mode = "GUIDED"
-        self.command_log: List[str] = []
-        self.winch_pwm_history: List[int] = []
+        self.command_log: list[str] = []
+        self.winch_pwm_history: list[int] = []
 
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         return (self.sim_x, self.sim_y, self.sim_z, self.sim_yaw)
 
     def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
@@ -194,7 +183,7 @@ class MAVLinkFlightController(FlightControllerInterface):
         elapsed = time.time() - start_time
         log.info(f"[FC] Connected in {elapsed:.1f}s. Firmware: {self._vehicle.version}")
 
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         if self._vehicle is None:
             return (0.0, 0.0, 0.0, 0.0)
         loc = self._vehicle.location.local_frame
@@ -382,7 +371,7 @@ def create_flight_controller(
 
     try:
         return MAVLinkFlightController(connection_string=connection_string, config=config)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         log.error(f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController.")
         return MockFlightController(config=config)
 

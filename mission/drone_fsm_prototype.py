@@ -26,12 +26,11 @@ import abc
 import argparse
 import csv
 import dataclasses
-from enum import Enum, auto
 import logging
 import math
-import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from enum import Enum, auto
+from typing import Any
 
 import cv2
 import numpy as np
@@ -179,7 +178,7 @@ class CoordinateManager:
         self.global_pos = GlobalCoordinate()
         self.local_pos = LocalSectionCoordinate()
 
-        self.landmarks: Dict[str, Tuple[float, float, float]] = {
+        self.landmarks: dict[str, tuple[float, float, float]] = {
             "HOME": (0.0, 0.0, 0.0),
             "START_QR": (1.0, 0.0, -self.config.TAKEOFF_ALT_M),
             "CORRIDOR_ENTRY": (3.0, 0.0, -self.config.CORRIDOR_ALT_M),
@@ -189,9 +188,9 @@ class CoordinateManager:
         }
 
         # Complete Stored Flight Trajectories (Forward and Return Paths)
-        self.forward_path: List[TrajectoryPoint] = []
-        self.return_path: List[TrajectoryPoint] = []
-        self.full_trajectory: List[TrajectoryPoint] = []
+        self.forward_path: list[TrajectoryPoint] = []
+        self.return_path: list[TrajectoryPoint] = []
+        self.full_trajectory: list[TrajectoryPoint] = []
 
     def update_from_fc(self, x: float, y: float, z: float, yaw: float) -> None:
         self.global_pos.x = float(x)
@@ -228,7 +227,7 @@ class CoordinateManager:
         else:
             self.return_path.append(pt)
 
-    def get_reverse_return_waypoints(self) -> List[Tuple[float, float, float]]:
+    def get_reverse_return_waypoints(self) -> list[tuple[float, float, float]]:
         """Returns the recorded forward path in reverse order as 3D (x, y, z) waypoints for return navigation."""
         return [(pt.x, pt.y, pt.z) for pt in reversed(self.forward_path)]
 
@@ -241,7 +240,7 @@ class CoordinateManager:
         d_left_wall: float = 0.0,
         d_right_wall: float = 0.0,
         fwd_dist: float = float("inf"),
-        target_qr_box_dist: Optional[float] = None,
+        target_qr_box_dist: float | None = None,
     ) -> LocalSectionCoordinate:
         gx, gy, gz = self.global_pos.x, self.global_pos.y, self.global_pos.z
         alt = self.global_pos.altitude
@@ -348,7 +347,7 @@ class CoordinateManager:
 # ===========================================================================
 class CameraInterface(abc.ABC):
     @abc.abstractmethod
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         pass
 
     @abc.abstractmethod
@@ -360,14 +359,14 @@ class MockCamera(CameraInterface):
     def __init__(self, width: int = 640, height: int = 480) -> None:
         self.width = width
         self.height = height
-        self._custom_frame: Optional[np.ndarray] = None
-        self._custom_depth: Optional[np.ndarray] = None
+        self._custom_frame: np.ndarray | None = None
+        self._custom_depth: np.ndarray | None = None
 
-    def set_frame(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray] = None) -> None:
+    def set_frame(self, bgr: np.ndarray, depth_mm: np.ndarray | None = None) -> None:
         self._custom_frame = bgr
         self._custom_depth = depth_mm
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         if self._custom_frame is not None:
             depth = (
                 self._custom_depth
@@ -391,7 +390,7 @@ class WebcamCamera(CameraInterface):
         self.camera_index = camera_index
         self.width = width
         self.height = height
-        self._cap: Optional[cv2.VideoCapture] = None
+        self._cap: cv2.VideoCapture | None = None
 
     def _ensure_opened(self) -> bool:
         if self._cap is None:
@@ -401,7 +400,7 @@ class WebcamCamera(CameraInterface):
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         return self._cap.isOpened()
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         if not self._ensure_opened() or self._cap is None:
             return None, None
         ret, frame = self._cap.read()
@@ -429,7 +428,7 @@ class OakDCamera(CameraInterface):
         self._device: Any = None
         self._q_rgb: Any = None
         self._q_depth: Any = None
-        self._fallback: Optional[WebcamCamera] = None
+        self._fallback: WebcamCamera | None = None
         self._initialized = False
 
     def _init_pipeline(self) -> None:
@@ -478,11 +477,11 @@ class OakDCamera(CameraInterface):
             self._q_rgb = self._device.getOutputQueue("rgb", maxSize=4, blocking=False)
             self._q_depth = self._device.getOutputQueue("depth", maxSize=4, blocking=False)
             log.info("[CAMERA] OAK-D Lite Stereo Depth Camera initialized successfully.")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             log.warning(f"[CAMERA] OAK-D initialization failed ({err}). Falling back to Webcam.")
             self._fallback = WebcamCamera(width=self.width, height=self.height)
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         self._init_pipeline()
         if self._fallback is not None:
             return self._fallback.read()
@@ -508,6 +507,33 @@ class OakDCamera(CameraInterface):
         self._initialized = False
 
 
+class ThreeCameraManager(CameraInterface):
+    """
+    3-Camera Suite Manager (Forward OAK-D Lite + Downward Arducam HQ + Skydroid FPV).
+    """
+
+    def __init__(self, forward_cam: CameraInterface | None = None,
+                 downward_cam: CameraInterface | None = None,
+                 fpv_cam: CameraInterface | None = None) -> None:
+        self.forward_cam = forward_cam or OakDCamera()
+        self.downward_cam = downward_cam or WebcamCamera(camera_index=1)
+        self.fpv_cam = fpv_cam or WebcamCamera(camera_index=2)
+
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+        return self.forward_cam.read()
+
+    def read_downward(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+        return self.downward_cam.read()
+
+    def read_fpv(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+        return self.fpv_cam.read()
+
+    def release(self) -> None:
+        self.forward_cam.release()
+        self.downward_cam.release()
+        self.fpv_cam.release()
+
+
 # ===========================================================================
 # 4. STEREO DEPTH SAMPLING & REASONING
 # ===========================================================================
@@ -515,8 +541,8 @@ DEPTH_UNKNOWN_M = float("inf")
 
 
 def depth_at_bbox(
-    depth_mm: Optional[np.ndarray],
-    bbox: Tuple[int, int, int, int],
+    depth_mm: np.ndarray | None,
+    bbox: tuple[int, int, int, int],
     percentile: float = 50.0,
 ) -> float:
     if depth_mm is None:
@@ -623,7 +649,7 @@ def detect_green_banner(
     bgr: np.ndarray,
     yolo_model: Any = None,
     yolo_results: Any = None,
-) -> Optional[Tuple[int, int, int, int]]:
+) -> tuple[int, int, int, int] | None:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, BANNER_HSV_LOWER, BANNER_HSV_UPPER)
     kernel = np.ones((7, 7), np.uint8)
@@ -662,8 +688,8 @@ def detect_green_banner(
     return best_box
 
 
-def detect_qr_codes(bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
-    results: List[Tuple[str, np.ndarray]] = []
+def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
+    results: list[tuple[str, np.ndarray]] = []
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4)
@@ -683,7 +709,7 @@ def detect_qr_codes(bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
                 results.append((text, quad))
             if results:
                 return results
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
     qr_detector = cv2.QRCodeDetector()
@@ -706,7 +732,7 @@ RED_VAL_MIN = 80
 RED_ZONE_MIN_AREA = 500
 
 
-def find_red_zones(bgr: np.ndarray) -> List[Tuple[int, int, int, int]]:
+def find_red_zones(bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
@@ -726,11 +752,11 @@ def find_red_zones(bgr: np.ndarray) -> List[Tuple[int, int, int, int]]:
 
 def detect_obstacles_with_depth(
     bgr: np.ndarray,
-    depth_mm: Optional[np.ndarray],
+    depth_mm: np.ndarray | None,
     yolo_model: Any = None,
     yolo_results: Any = None,
     config: MissionConfig = CFG,
-) -> List[dict]:
+) -> list[dict]:
     frame = preprocess_clahe(bgr)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     h, w = frame.shape[:2]
@@ -813,16 +839,16 @@ class PerceptionPipeline:
             from ultralytics import YOLO  # type: ignore
             self._yolo_model = YOLO("yolov8n.pt")
             log.info("[AI PERCEPTION] YOLOv8 model loaded successfully.")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             log.warning(f"[AI PERCEPTION] YOLOv8 not available ({err}). Falling back to Classical CV.")
             self._yolo_model = None
 
-    def perceive(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
+    def perceive(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
         self._lazy_load_yolo()
 
         _yolo_res = None
-        humans: List[dict] = []
-        yolo_all: List[tuple] = []
+        humans: list[dict] = []
+        yolo_all: list[tuple] = []
 
         if self._yolo_model is not None:
             try:
@@ -848,7 +874,7 @@ class PerceptionPipeline:
                                 "cx": x1 + bw // 2,
                                 "cy": y1 + bh // 2,
                             })
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 log.debug(f"YOLO inference error: {err}")
 
         obstacles = detect_obstacles_with_depth(bgr, depth_mm, self._yolo_model, _yolo_res, self.config)
@@ -1003,7 +1029,7 @@ def annotate_mission_frame(
 # ===========================================================================
 class FlightControllerInterface(abc.ABC):
     @abc.abstractmethod
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         pass
 
     @abc.abstractmethod
@@ -1056,10 +1082,10 @@ class MockFlightController(FlightControllerInterface):
         self.sim_yaw = 0.0
         self.armed = False
         self.mode = "GUIDED"
-        self.command_log: List[str] = []
-        self.winch_pwm_history: List[int] = []
+        self.command_log: list[str] = []
+        self.winch_pwm_history: list[int] = []
 
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         return (self.sim_x, self.sim_y, self.sim_z, self.sim_yaw)
 
     def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
@@ -1150,7 +1176,7 @@ class MAVLinkFlightController(FlightControllerInterface):
         elapsed = time.time() - start_time
         log.info(f"[FC] Connected in {elapsed:.1f}s. Firmware: {self._vehicle.version}")
 
-    def get_position_ned(self) -> Tuple[float, float, float, float]:
+    def get_position_ned(self) -> tuple[float, float, float, float]:
         if self._vehicle is None:
             return (0.0, 0.0, 0.0, 0.0)
         loc = self._vehicle.location.local_frame
@@ -1334,7 +1360,7 @@ def create_flight_controller(
 
     try:
         return MAVLinkFlightController(connection_string=connection_string, config=config)
-    except Exception as err:
+    except Exception as err:  # noqa: BLE001
         log.error(f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController.")
         return MockFlightController(config=config)
 
@@ -1374,7 +1400,7 @@ def execute_winch_delivery(fc: FlightControllerInterface, config: MissionConfig 
 class FlightDataRecorder:
     def __init__(self, log_path: str = "flight_data_log.csv") -> None:
         self.filepath = log_path
-        self.file = open(self.filepath, mode="w", newline="")
+        self.file = open(self.filepath, mode="w", newline="")  # noqa: SIM115
         self.writer = csv.writer(self.file)
         self.writer.writerow([
             "timestamp", "state", "global_x", "global_y", "global_z", "altitude",
@@ -1388,7 +1414,7 @@ class FlightDataRecorder:
         state: MissionState,
         gpos: GlobalCoordinate,
         lpos: LocalSectionCoordinate,
-        percept: Dict[str, Any],
+        percept: dict[str, Any],
         target_id: str = "",
     ) -> None:
         self.writer.writerow([
@@ -1421,9 +1447,9 @@ class MissionFSM:
         self,
         fc: FlightControllerInterface,
         camera: CameraInterface,
-        coord_mgr: Optional[CoordinateManager] = None,
-        perception: Optional[PerceptionPipeline] = None,
-        recorder: Optional[FlightDataRecorder] = None,
+        coord_mgr: CoordinateManager | None = None,
+        perception: PerceptionPipeline | None = None,
+        recorder: FlightDataRecorder | None = None,
         config: MissionConfig = CFG,
     ) -> None:
         self.fc = fc
@@ -1442,7 +1468,7 @@ class MissionFSM:
         self.mission_start_time = time.time()
         self.step_count = 0
 
-    def step(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
+    def step(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
         self.step_count += 1
 
         gx, gy, gz, yaw = self.fc.get_position_ned()
@@ -1455,7 +1481,7 @@ class MissionFSM:
         red_zones = percept["red_zones"]
         qr_codes = percept["qr_codes"]
         banner_box = percept["banner_box"]
-        steering = percept["steering"]
+        _steering = percept["steering"]
         fwd_dist = percept["fwd_dist_m"]
         d_left_w = percept["d_left_wall"]
         d_right_w = percept["d_right_wall"]
@@ -1518,7 +1544,7 @@ class MissionFSM:
 
         elif self.state == MissionState.FIND_GREEN_BANNER:
             if banner_box is not None:
-                bx, by, bw, bh = banner_box
+                bx, _by, bw, _bh = banner_box
                 frame_cx = bgr.shape[1] // 2
                 banner_cx = bx + bw // 2
                 banner_dist = depth_at_bbox(depth_mm, banner_box)
@@ -1724,7 +1750,7 @@ class MissionFSM:
             "percept": percept,
         }
 
-    def run(self, headless: bool = False, max_duration_s: Optional[float] = None) -> None:
+    def run(self, headless: bool = False, max_duration_s: float | None = None) -> None:
         start_time = time.time()
         timeout = max_duration_s or self.config.MAX_MISSION_TIME_S
 

@@ -6,8 +6,8 @@ Unit tests for Mission Finite State Machine (Forward & Backward Pass).
 from __future__ import annotations
 
 import unittest
-import numpy as np
 
+import numpy as np
 from aerothon.config import MissionConfig, MissionState
 from aerothon.flight_controller import MockFlightController
 from aerothon.fsm import MissionFSM

@@ -4,6 +4,7 @@ Handles SLAM pipeline lifecycle, tracking status, and re-localization fallbacks.
 """
 
 import logging
+
 from aerothon.slam.pose_estimator import PoseEstimate, PoseEstimator
 
 log = logging.getLogger("AeroTHON2026.SLAM")

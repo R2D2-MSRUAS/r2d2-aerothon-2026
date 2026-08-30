@@ -3,7 +3,6 @@ Corridor Controller & Wall-Centering Engine
 R2D2 Navigation & Control Subsystem
 """
 
-from typing import Tuple
 from aerothon.perception.manager import PerceptionResult
 
 

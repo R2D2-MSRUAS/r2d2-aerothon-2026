@@ -5,28 +5,32 @@ R2D2 System Architecture Compliance Package
 """
 
 from aerothon.config import MissionConfig, MissionState
-from aerothon.coordinates import CoordinateManager, GlobalCoordinate, LocalSectionCoordinate
+from aerothon.coordinates import (
+    CoordinateManager,
+    GlobalCoordinate,
+    LocalSectionCoordinate,
+)
+from aerothon.mavlink.interface import MAVLinkInterface
+from aerothon.mission.fsm import MissionFSM, R2D2MissionState
+from aerothon.payload.winch_control import WinchController
 from aerothon.perception.manager import PerceptionManager, PerceptionResult
 from aerothon.slam.pose_estimator import PoseEstimate, PoseEstimator
 from aerothon.slam.slam_manager import SLAMManager
-from aerothon.mission.fsm import MissionFSM, R2D2MissionState
-from aerothon.mavlink.interface import MAVLinkInterface
-from aerothon.payload.winch_control import WinchController
 
 __version__ = "2.0.0"
 __all__ = [
-    "MissionConfig",
-    "MissionState",
     "CoordinateManager",
     "GlobalCoordinate",
     "LocalSectionCoordinate",
+    "MAVLinkInterface",
+    "MissionConfig",
+    "MissionFSM",
+    "MissionState",
     "PerceptionManager",
     "PerceptionResult",
     "PoseEstimate",
     "PoseEstimator",
-    "SLAMManager",
-    "MissionFSM",
     "R2D2MissionState",
-    "MAVLinkInterface",
+    "SLAMManager",
     "WinchController",
 ]

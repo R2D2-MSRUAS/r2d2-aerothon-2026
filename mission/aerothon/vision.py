@@ -17,7 +17,7 @@ from __future__ import annotations
 import abc
 import logging
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import cv2
 import numpy as np
@@ -36,9 +36,8 @@ class CameraInterface(abc.ABC):
     """Abstract interface for RGB + Depth video capture."""
 
     @abc.abstractmethod
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Returns (bgr_frame [H,W,3 uint8], depth_mm [H,W uint16]) or (None, None)."""
-        pass
 
     @abc.abstractmethod
     def release(self) -> None:
@@ -51,14 +50,14 @@ class MockCamera(CameraInterface):
     def __init__(self, width: int = 640, height: int = 480) -> None:
         self.width = width
         self.height = height
-        self._custom_frame: Optional[np.ndarray] = None
-        self._custom_depth: Optional[np.ndarray] = None
+        self._custom_frame: np.ndarray | None = None
+        self._custom_depth: np.ndarray | None = None
 
-    def set_frame(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray] = None) -> None:
+    def set_frame(self, bgr: np.ndarray, depth_mm: np.ndarray | None = None) -> None:
         self._custom_frame = bgr
         self._custom_depth = depth_mm
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         if self._custom_frame is not None:
             depth = (
                 self._custom_depth
@@ -86,7 +85,7 @@ class WebcamCamera(CameraInterface):
         self.camera_index = camera_index
         self.width = width
         self.height = height
-        self._cap: Optional[cv2.VideoCapture] = None
+        self._cap: cv2.VideoCapture | None = None
 
     def _ensure_opened(self) -> bool:
         if self._cap is None:
@@ -96,7 +95,7 @@ class WebcamCamera(CameraInterface):
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         return self._cap.isOpened()
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         if not self._ensure_opened() or self._cap is None:
             return None, None
         ret, frame = self._cap.read()
@@ -126,7 +125,7 @@ class OakDCamera(CameraInterface):
         self._device: Any = None
         self._q_rgb: Any = None
         self._q_depth: Any = None
-        self._fallback: Optional[WebcamCamera] = None
+        self._fallback: WebcamCamera | None = None
         self._initialized = False
 
     def _init_pipeline(self) -> None:
@@ -175,11 +174,11 @@ class OakDCamera(CameraInterface):
             self._q_rgb = self._device.getOutputQueue("rgb", maxSize=4, blocking=False)
             self._q_depth = self._device.getOutputQueue("depth", maxSize=4, blocking=False)
             log.info("OAK-D Hardware stereo pipeline connected successfully.")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             log.warning(f"OAK-D initialization failed ({err}). Falling back to WebcamCamera.")
             self._fallback = WebcamCamera(width=self.width, height=self.height)
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         self._init_pipeline()
         if self._fallback is not None:
             return self._fallback.read()
@@ -211,22 +210,22 @@ class ThreeCameraManager(CameraInterface):
       3. Secondary Camera (Skydroid FPV Mini): FPV pilot monitoring & Return pass safety
     """
 
-    def __init__(self, forward_cam: Optional[CameraInterface] = None,
-                 downward_cam: Optional[CameraInterface] = None,
-                 fpv_cam: Optional[CameraInterface] = None) -> None:
+    def __init__(self, forward_cam: CameraInterface | None = None,
+                 downward_cam: CameraInterface | None = None,
+                 fpv_cam: CameraInterface | None = None) -> None:
         self.forward_cam = forward_cam or OakDCamera()
         self.downward_cam = downward_cam or WebcamCamera(camera_index=1)
         self.fpv_cam = fpv_cam or WebcamCamera(camera_index=2)
 
-    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Primary read defaults to forward OAK-D Lite stereo depth camera."""
         return self.forward_cam.read()
 
-    def read_downward(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read_downward(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Reads high-resolution downward camera frame for precision QR drop alignment."""
         return self.downward_cam.read()
 
-    def read_fpv(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
+    def read_fpv(self) -> tuple[np.ndarray | None, np.ndarray | None]:
         """Reads secondary FPV camera frame."""
         return self.fpv_cam.read()
 
@@ -240,8 +239,8 @@ class ThreeCameraManager(CameraInterface):
 # DEPTH SAMPLING & ACTION LOGIC
 # ===========================================================================
 def depth_at_bbox(
-    depth_mm: Optional[np.ndarray],
-    bbox: Tuple[int, int, int, int],
+    depth_mm: np.ndarray | None,
+    bbox: tuple[int, int, int, int],
     percentile: float = 50.0,
 ) -> float:
     """Extracts median/percentile depth inside bounding box (x, y, w, h) in meters."""
@@ -351,7 +350,7 @@ def detect_green_banner(
     bgr: np.ndarray,
     yolo_model: Any = None,
     yolo_results: Any = None,
-) -> Optional[Tuple[int, int, int, int]]:
+) -> tuple[int, int, int, int] | None:
     """Detects AeroTHON 2026 Green Banner marking corridor entrance."""
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, BANNER_HSV_LOWER, BANNER_HSV_UPPER)
@@ -391,12 +390,12 @@ def detect_green_banner(
     return best_box
 
 
-def detect_qr_codes(bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
+def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
     """
     Detects and decodes multiple QR codes simultaneously.
     Tries pyzbar first (if installed), then multi-scale OpenCV QRCodeDetector.
     """
-    results: List[Tuple[str, np.ndarray]] = []
+    results: list[tuple[str, np.ndarray]] = []
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
     thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4)
@@ -417,7 +416,7 @@ def detect_qr_codes(bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
                 results.append((text, quad))
             if results:
                 return results
-    except Exception:
+    except Exception:  # noqa: BLE001, S110
         pass
 
     # 2. OpenCV fallback
@@ -441,7 +440,7 @@ RED_VAL_MIN = 80
 RED_ZONE_MIN_AREA = 500
 
 
-def find_red_zones(bgr: np.ndarray) -> List[Tuple[int, int, int, int]]:
+def find_red_zones(bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
     """Detects restricted red no-fly zones."""
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
@@ -462,11 +461,11 @@ def find_red_zones(bgr: np.ndarray) -> List[Tuple[int, int, int, int]]:
 
 def detect_obstacles_with_depth(
     bgr: np.ndarray,
-    depth_mm: Optional[np.ndarray],
+    depth_mm: np.ndarray | None,
     yolo_model: Any = None,
     yolo_results: Any = None,
     config: MissionConfig = DEFAULT_CONFIG,
-) -> List[dict]:
+) -> list[dict]:
     """Unified obstacle detector fusing Classical CV dark blobs and YOLO with stereo depth."""
     frame = preprocess_clahe(bgr)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -554,19 +553,19 @@ class PerceptionPipeline:
             from ultralytics import YOLO  # type: ignore
             self._yolo_model = YOLO("yolov8n.pt")
             log.info("YOLOv8 model loaded on first perception call.")
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001
             log.warning(f"Could not load YOLOv8 model ({err}). Using classical CV only.")
             self._yolo_model = None
 
-    def perceive(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
+    def perceive(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
         """
         Runs complete perception on a single frame.
         """
         self._lazy_load_yolo()
 
         _yolo_res = None
-        humans: List[dict] = []
-        yolo_all: List[tuple] = []
+        humans: list[dict] = []
+        yolo_all: list[tuple] = []
 
         if self._yolo_model is not None:
             try:
@@ -592,7 +591,7 @@ class PerceptionPipeline:
                                 "cx": x1 + bw // 2,
                                 "cy": y1 + bh // 2,
                             })
-            except Exception as err:
+            except Exception as err:  # noqa: BLE001
                 log.debug(f"YOLO inference error: {err}")
 
         obstacles = detect_obstacles_with_depth(bgr, depth_mm, self._yolo_model, _yolo_res, self.config)

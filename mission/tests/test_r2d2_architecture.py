@@ -4,13 +4,14 @@ Ensures drone-free execution without hardware or camera attached.
 """
 
 import unittest
-from aerothon.perception.manager import PerceptionManager, PerceptionResult
-from aerothon.slam.pose_estimator import PoseEstimate, PoseEstimator
+
+from aerothon.mavlink.interface import MAVLinkInterface
 from aerothon.mission.fsm import MissionFSM, R2D2MissionState
 from aerothon.navigation.corridor_controller import CorridorController
 from aerothon.navigation.obstacle_avoidance import ObstacleAvoidance
-from aerothon.mavlink.interface import MAVLinkInterface
 from aerothon.payload.winch_control import WinchController
+from aerothon.perception.manager import PerceptionManager, PerceptionResult
+from aerothon.slam.pose_estimator import PoseEstimate
 
 
 class TestR2D2Architecture(unittest.TestCase):

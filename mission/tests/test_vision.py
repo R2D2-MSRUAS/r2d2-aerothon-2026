@@ -7,9 +7,8 @@ from __future__ import annotations
 
 import math
 import unittest
-import cv2
-import numpy as np
 
+import numpy as np
 from aerothon.config import DEFAULT_CONFIG
 from aerothon.vision import (
     DEPTH_UNKNOWN_M,
@@ -17,13 +16,11 @@ from aerothon.vision import (
     depth_action,
     depth_at_bbox,
     detect_green_banner,
-    detect_obstacles_with_depth,
     draw_circle,
     draw_ellipse,
     draw_hexagon,
     draw_rounded_box,
     find_red_zones,
-    preprocess_clahe,
 )
 
 
@@ -82,7 +79,7 @@ class TestVision(unittest.TestCase):
 
         boxes = find_red_zones(img)
         self.assertGreaterEqual(len(boxes), 1)
-        rx, ry, rw, rh = boxes[0]
+        rx, ry, _rw, _rh = boxes[0]
         self.assertLess(abs(rx - 300), 10)
         self.assertLess(abs(ry - 200), 10)
 

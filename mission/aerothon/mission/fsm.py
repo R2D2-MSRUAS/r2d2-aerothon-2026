@@ -3,10 +3,9 @@ Mission FSM (Finite State Machine)
 R2D2 System Architecture Compliance Module
 """
 
-from enum import Enum, auto
 import logging
 import time
-from typing import Optional
+from enum import Enum, auto
 
 from aerothon.perception.manager import PerceptionResult
 from aerothon.slam.pose_estimator import PoseEstimate
@@ -33,7 +32,7 @@ class R2D2MissionState(Enum):
 class MissionFSM:
     """Manages sequential mission transitions and state-dependent perception goals."""
 
-    def __init__(self, target_qr_id: Optional[str] = None):
+    def __init__(self, target_qr_id: str | None = None):
         self.state = R2D2MissionState.INIT
         self.target_qr_id = target_qr_id
         self.state_start_time = time.time()
@@ -99,8 +98,7 @@ class MissionFSM:
             if pose.position[0] <= 1.0 or elapsed > 15.0:
                 self.transition_to(R2D2MissionState.LAND)
 
-        elif self.state == R2D2MissionState.LAND:
-            if abs(pose.position[2]) < 0.2 or elapsed > 10.0:
-                self.transition_to(R2D2MissionState.COMPLETE)
+        elif self.state == R2D2MissionState.LAND and (abs(pose.position[2]) < 0.2 or elapsed > 10.0):
+            self.transition_to(R2D2MissionState.COMPLETE)
 
         return self.state

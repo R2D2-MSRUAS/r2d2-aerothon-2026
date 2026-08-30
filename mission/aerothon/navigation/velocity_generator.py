@@ -3,7 +3,7 @@ Velocity Generator Module
 Converts high-level goals into body velocity vector setpoints.
 """
 
-from typing import Tuple
+
 from aerothon.navigation.corridor_controller import CorridorController
 from aerothon.navigation.obstacle_avoidance import ObstacleAvoidance
 from aerothon.perception.manager import PerceptionResult
@@ -16,7 +16,7 @@ class VelocityGenerator:
         self.corridor_ctrl = CorridorController()
         self.avoidance = ObstacleAvoidance()
 
-    def generate_corridor_velocity(self, perception: PerceptionResult, base_speed: float = 1.5) -> Tuple[float, float, float]:
+    def generate_corridor_velocity(self, perception: PerceptionResult, base_speed: float = 1.5) -> tuple[float, float, float]:
         """
         Computes (vx, vy, vz) for corridor traversal.
         """

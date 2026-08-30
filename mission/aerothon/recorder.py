@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import csv
 import time
-from typing import Any, Dict, Optional
+from typing import Any
 
 from aerothon.config import MissionState
 from aerothon.coordinates import GlobalCoordinate, LocalSectionCoordinate
@@ -20,7 +20,7 @@ class FlightDataRecorder:
 
     def __init__(self, log_path: str = "flight_data_log.csv") -> None:
         self.filepath = log_path
-        self.file = open(self.filepath, mode="w", newline="")
+        self.file = open(self.filepath, mode="w", newline="")  # noqa: SIM115
         self.writer = csv.writer(self.file)
         self.writer.writerow([
             "timestamp",
@@ -49,7 +49,7 @@ class FlightDataRecorder:
         state: MissionState,
         gpos: GlobalCoordinate,
         lpos: LocalSectionCoordinate,
-        percept: Dict[str, Any],
+        percept: dict[str, Any],
         target_id: str = "",
     ) -> None:
         self.writer.writerow([
