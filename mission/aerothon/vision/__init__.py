@@ -348,10 +348,10 @@ SHAPE_FUNCS = {
 # ===========================================================================
 def preprocess_clahe(bgr: np.ndarray) -> np.ndarray:
     lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2Lab)
-    l, a, b = cv2.split(lab)
+    l_ch, a_ch, b_ch = cv2.split(lab)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    l = clahe.apply(l)
-    return cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_Lab2BGR)
+    l_ch = clahe.apply(l_ch)
+    return cv2.cvtColor(cv2.merge([l_ch, a_ch, b_ch]), cv2.COLOR_Lab2BGR)
 
 
 BANNER_HSV_LOWER = np.array([35, 75, 50])

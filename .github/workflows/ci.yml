@@ -33,7 +33,7 @@ jobs:
         run: python -m compileall -q .
 
       - name: Ruff static checks
-        run: ruff check .
+        run: ruff check --select E,F,W --ignore E501 .
 
       - name: Pure logic tests
         run: |
