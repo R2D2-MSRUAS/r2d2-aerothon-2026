@@ -2,6 +2,7 @@
 ## Mission 2: SkyScan Autonomous Rapid Delivery
 ### Complete Flight, Vision, Hardware & Autopilot Parameters Reference
 **Author:** Bhakti Revankar  
+**Team:** R2D2  
 **Platform:** NVIDIA Jetson TX2 NX + Pixhawk 6X Mini + Luxonis OAK-D Lite  
 
 ---
@@ -60,7 +61,7 @@
 | `LANDING_TIMEOUT_S` | `30.0 s` | Cut throttle upon ground contact verification |
 | `FC_CONNECTION_TIMEOUT_S` | `30.0 s` | Fall back to safe `MockFlightController` |
 | `QR_SCAN_TIMEOUT_S` | `10.0 s` | Initiate 360° yaw search sweep pattern |
-| `MAX_MISSION_TIME_S` | `900.0 s` (`15 min`) | Competition time limit; trigger automatic **Return-to-Launch (RTL)** |
+| `MAX_MISSION_TIME_S` | `1200.0 s` (`20 min`) | Competition time limit; trigger automatic **Return-to-Launch (RTL)** |
 
 ---
 

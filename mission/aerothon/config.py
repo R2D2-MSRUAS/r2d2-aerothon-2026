@@ -85,7 +85,7 @@ class MissionConfig:
     LANDING_TIMEOUT_S: float = 30.0  # Max seconds for touchdown descent
     FC_CONNECTION_TIMEOUT_S: float = 30.0  # MAVLink heartbeat connection timeout
     MAX_MISSION_TIME_S: float = (
-        900.0  # 15 minutes competition time limit (rulebook §4.2.4)
+        1200.0  # 20 minutes competition time limit (rulebook §4.2.4)
     )
 
     # Winch & Payload Drop Mechanism (Pololu DRV8838 Driver + N20 100RPM Motor)

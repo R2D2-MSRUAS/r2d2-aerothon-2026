@@ -26,11 +26,12 @@ import abc
 import argparse
 import csv
 import dataclasses
+from enum import Enum, auto
 import logging
 import math
+import sys
 import time
-from enum import Enum, auto
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -40,10 +41,10 @@ import numpy as np
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(asctime)s][%(levelname)s][BhaktiRevankar-AeroTHON] %(message)s",
+    format="[%(asctime)s][%(levelname)s][R2D2-AeroTHON] %(message)s",
     datefmt="%H:%M:%S",
 )
-log = logging.getLogger("BhaktiRevankar-AeroTHON2026")
+log = logging.getLogger("R2D2-AeroTHON2026")
 
 
 # ===========================================================================
@@ -51,88 +52,82 @@ log = logging.getLogger("BhaktiRevankar-AeroTHON2026")
 # ===========================================================================
 class MissionState(Enum):
     """Complete Mission State Machine including Forward & Backward passes."""
-
-    INIT = auto()
-    TAKEOFF = auto()
-    SCAN_START_QR = auto()
-    FIND_GREEN_BANNER = auto()
-    ENTER_CORRIDOR = auto()
-    FOLLOW_CORRIDOR = auto()
-    REACH_DELIVERY = auto()
-    SCAN_TARGET_QR = auto()
-    ALIGN_PAYLOAD = auto()
-    DROP_PAYLOAD = auto()
-    ASCEND_RETURN = auto()
-    ALIGN_RETURN_CORRIDOR = auto()
-    FOLLOW_CORRIDOR_RETURN = auto()
-    EXIT_CORRIDOR = auto()
-    APPROACH_HOME = auto()
-    PRECISION_LAND = auto()
-    AVOID_OBSTACLES = auto()
-    COMPLETE = auto()
+    INIT                    = auto()
+    TAKEOFF                 = auto()
+    SCAN_START_QR           = auto()
+    FIND_GREEN_BANNER       = auto()
+    ENTER_CORRIDOR          = auto()
+    FOLLOW_CORRIDOR         = auto()
+    REACH_DELIVERY          = auto()
+    SCAN_TARGET_QR          = auto()
+    ALIGN_PAYLOAD           = auto()
+    DROP_PAYLOAD            = auto()
+    ASCEND_RETURN           = auto()
+    ALIGN_RETURN_CORRIDOR   = auto()
+    FOLLOW_CORRIDOR_RETURN  = auto()
+    EXIT_CORRIDOR           = auto()
+    APPROACH_HOME           = auto()
+    PRECISION_LAND          = auto()
+    AVOID_OBSTACLES         = auto()
+    COMPLETE                = auto()
 
 
 @dataclasses.dataclass(frozen=True)
 class MissionConfig:
     """Mission Parameters as mandated by SAEINDIA AeroTHON 2026 Rulebook."""
-
     # Altitudes (meters above ground)
-    TAKEOFF_ALT_M: float = 5.0  # 5.0m takeoff & initial QR scan
-    CORRIDOR_ALT_M: float = 3.048  # 10 ft (~3.05m) corridor navigation altitude
-    DELIVERY_SEARCH_ALT_M: float = 10.0  # 10.0m delivery zone QR search altitude
-    PAYLOAD_DROP_ALT_M: float = 5.0  # 5.0m precision winch drop altitude
-    RETURN_CRUISE_ALT_M: float = 10.0  # 10.0m return climb altitude
-    RETURN_CORRIDOR_ALT_M: float = 3.048  # 10 ft return corridor traversal altitude
+    TAKEOFF_ALT_M           : float = 5.0    # 5.0m takeoff & initial QR scan
+    CORRIDOR_ALT_M          : float = 3.048  # 10 ft (~3.05m) corridor navigation altitude
+    DELIVERY_SEARCH_ALT_M   : float = 10.0   # 10.0m delivery zone QR search altitude
+    PAYLOAD_DROP_ALT_M      : float = 5.0    # 5.0m precision winch drop altitude
+    RETURN_CRUISE_ALT_M     : float = 10.0   # 10.0m return climb altitude
+    RETURN_CORRIDOR_ALT_M   : float = 3.048  # 10 ft return corridor traversal altitude
 
     # Velocities (m/s)
-    CRUISE_SPEED_MPS: float = 1.8  # Standard cruise speed
-    CORRIDOR_SPEED_MPS: float = 1.5  # Controlled corridor traverse speed
-    SLOW_SPEED_MPS: float = 0.8  # Approach and slow maneuver speed
-    MAX_SPEED_MPS: float = 2.5  # Safety limit for body velocity commands
-    YAW_RATE_DPS: float = 25.0  # Maximum yaw turn rate (deg/s)
+    CRUISE_SPEED_MPS        : float = 1.8    # Standard cruise speed
+    CORRIDOR_SPEED_MPS      : float = 1.5    # Controlled corridor traverse speed
+    SLOW_SPEED_MPS          : float = 0.8    # Approach and slow maneuver speed
+    MAX_SPEED_MPS           : float = 2.5    # Safety limit for body velocity commands
+    YAW_RATE_DPS            : float = 25.0   # Maximum yaw turn rate (deg/s)
 
     # Obstacle & Proximity Distances (meters)
-    OBS_SAFE_DIST_M: float = 2.0  # > 2.0m: Full cruise speed
-    OBS_SLOW_DIST_M: float = 1.2  # 1.2m - 2.0m: Half speed & lateral steer
-    OBS_CRITICAL_STOP_M: float = 0.8  # < 0.8m: Immediate emergency stop & lateral evade
-    CORRIDOR_WIDTH_M: float = 3.5  # Specified arena corridor width
-    CORRIDOR_LENGTH_EST_M: float = 15.0  # Nominal corridor length
+    OBS_SAFE_DIST_M         : float = 2.0    # > 2.0m: Full cruise speed
+    OBS_SLOW_DIST_M         : float = 1.2    # 1.2m - 2.0m: Half speed & lateral steer
+    OBS_CRITICAL_STOP_M     : float = 0.8    # < 0.8m: Immediate emergency stop & lateral evade
+    CORRIDOR_WIDTH_M        : float = 3.5    # Specified arena corridor width
+    CORRIDOR_LENGTH_EST_M   : float = 15.0   # Nominal corridor length
 
     # Tolerances
-    ALTITUDE_TOLERANCE_M: float = 0.30  # Altitude convergence threshold
-    POSITION_TOLERANCE_M: float = 0.35  # Waypoint convergence radius
-    HEADING_TOLERANCE_DEG: float = 5.0  # Yaw alignment tolerance
+    ALTITUDE_TOLERANCE_M    : float = 0.30   # Altitude convergence threshold
+    POSITION_TOLERANCE_M    : float = 0.35   # Waypoint convergence radius
+    HEADING_TOLERANCE_DEG   : float = 5.0    # Yaw alignment tolerance
 
     # Loop & Flight Timeouts (seconds)
-    ARM_TIMEOUT_S: float = 10.0  # Max seconds to wait for FC arming
-    TAKEOFF_TIMEOUT_S: float = 25.0  # Max seconds for takeoff altitude climb
-    ALTITUDE_CHANGE_TIMEOUT_S: float = (
-        18.0  # Max seconds for in-flight altitude changes
-    )
-    LANDING_TIMEOUT_S: float = 30.0  # Max seconds for touchdown descent
-    FC_CONNECTION_TIMEOUT_S: float = 30.0  # MAVLink heartbeat connection timeout
-    MAX_MISSION_TIME_S: float = 900.0  # 15 minutes competition time limit
+    ARM_TIMEOUT_S           : float = 10.0   # Max seconds to wait for FC arming
+    TAKEOFF_TIMEOUT_S       : float = 25.0   # Max seconds for takeoff altitude climb
+    ALTITUDE_CHANGE_TIMEOUT_S: float = 18.0  # Max seconds for in-flight altitude changes
+    LANDING_TIMEOUT_S       : float = 30.0   # Max seconds for touchdown descent
+    FC_CONNECTION_TIMEOUT_S : float = 30.0   # MAVLink heartbeat connection timeout
+    MAX_MISSION_TIME_S      : float = 1200.0  # 20 minutes competition time limit
 
     # Winch & Payload Drop Mechanism
-    WINCH_SERVO_CHANNEL: int = 9  # MAVLink AUX servo channel (Pixhawk Pin 9)
-    WINCH_LOWER_PWM: int = 1700  # Lower hoist PWM (µs)
-    WINCH_NEUTRAL_PWM: int = 1500  # Stop/Hold PWM (µs)
-    WINCH_RAISE_PWM: int = 1300  # Retract cable PWM (µs)
-    WINCH_RELEASE_PWM: int = 1900  # Payload detach trigger PWM (µs)
-    WINCH_LOWER_TIME_S: float = 4.5  # Lowering duration
-    WINCH_HOLD_TIME_S: float = 1.5  # Ground contact settle duration
-    WINCH_REEL_TIME_S: float = 4.5  # Cable retraction duration
+    WINCH_SERVO_CHANNEL     : int   = 9      # MAVLink AUX servo channel (Pixhawk Pin 9)
+    WINCH_LOWER_PWM         : int   = 1700   # Lower hoist PWM (µs)
+    WINCH_NEUTRAL_PWM       : int   = 1500   # Stop/Hold PWM (µs)
+    WINCH_RAISE_PWM         : int   = 1300   # Retract cable PWM (µs)
+    WINCH_RELEASE_PWM       : int   = 1900   # Payload detach trigger PWM (µs)
+    WINCH_LOWER_TIME_S      : float = 4.5    # Lowering duration
+    WINCH_HOLD_TIME_S       : float = 1.5    # Ground contact settle duration
+    WINCH_REEL_TIME_S       : float = 4.5    # Cable retraction duration
 
     # Mass & Center of Gravity (CoG) Compensation
-    PAYLOAD_MASS_KG: float = 0.100  # 100g specified payload mass
-    DRONE_EMPTY_MASS_KG: float = 1.850  # Dry weight of UAS (< 2.0kg MTOW)
-    PAYLOAD_COG_OFFSET_X_M: float = (
-        0.12  # Longitudinal distance from CoG to payload mount
-    )
+    PAYLOAD_MASS_KG         : float = 0.100  # 100g specified payload mass
+    DRONE_EMPTY_MASS_KG     : float = 1.850  # Dry weight of UAS (< 2.0kg MTOW)
+    PAYLOAD_COG_OFFSET_X_M  : float = 0.12   # Longitudinal distance from CoG to payload mount
 
     # Vision & QR Code Parameters
-    QR_CONFIRM_COUNT: int = 3  # Consecutive frames to confirm delivery QR
-    QR_SCAN_TIMEOUT_S: float = 10.0  # Time before starting yaw scan pattern
+    QR_CONFIRM_COUNT        : int   = 3      # Consecutive frames to confirm delivery QR
+    QR_SCAN_TIMEOUT_S       : float = 10.0   # Time before starting yaw scan pattern
 
 
 CFG = MissionConfig()
@@ -144,10 +139,9 @@ CFG = MissionConfig()
 @dataclasses.dataclass
 class GlobalCoordinate:
     """Global Position in North-East-Down (NED) World Frame from Launch Pad (0, 0, 0)."""
-
-    x: float = 0.0  # +X: North / Forward (meters)
-    y: float = 0.0  # +Y: East / Right (meters)
-    z: float = 0.0  # +Z: Down (meters) -> Altitude = -z (when z <= 0)
+    x: float = 0.0        # +X: North / Forward (meters)
+    y: float = 0.0        # +Y: East / Right (meters)
+    z: float = 0.0        # +Z: Down (meters) -> Altitude = -z (when z <= 0)
     yaw_deg: float = 0.0  # Yaw angle in degrees (0° = Initial launch forward heading)
 
     @property
@@ -158,7 +152,6 @@ class GlobalCoordinate:
 @dataclasses.dataclass
 class LocalSectionCoordinate:
     """Local Coordinate relative to the active mission section."""
-
     section_name: str = "START_PAD"
     x_rel: float = 0.0
     y_rel: float = 0.0
@@ -170,7 +163,6 @@ class LocalSectionCoordinate:
 @dataclasses.dataclass
 class TrajectoryPoint:
     """A timestamped 3D waypoint on the stored flight trajectory."""
-
     timestamp: float
     x: float
     y: float
@@ -187,27 +179,19 @@ class CoordinateManager:
         self.global_pos = GlobalCoordinate()
         self.local_pos = LocalSectionCoordinate()
 
-        self.landmarks: dict[str, tuple[float, float, float]] = {
+        self.landmarks: Dict[str, Tuple[float, float, float]] = {
             "HOME": (0.0, 0.0, 0.0),
             "START_QR": (1.0, 0.0, -self.config.TAKEOFF_ALT_M),
             "CORRIDOR_ENTRY": (3.0, 0.0, -self.config.CORRIDOR_ALT_M),
-            "CORRIDOR_EXIT": (
-                3.0 + self.config.CORRIDOR_LENGTH_EST_M,
-                0.0,
-                -self.config.CORRIDOR_ALT_M,
-            ),
-            "DELIVERY_CENTER": (
-                3.0 + self.config.CORRIDOR_LENGTH_EST_M + 5.0,
-                0.0,
-                -self.config.DELIVERY_SEARCH_ALT_M,
-            ),
+            "CORRIDOR_EXIT": (3.0 + self.config.CORRIDOR_LENGTH_EST_M, 0.0, -self.config.CORRIDOR_ALT_M),
+            "DELIVERY_CENTER": (3.0 + self.config.CORRIDOR_LENGTH_EST_M + 5.0, 0.0, -self.config.DELIVERY_SEARCH_ALT_M),
             "TARGET_QR": (0.0, 0.0, 0.0),
         }
 
         # Complete Stored Flight Trajectories (Forward and Return Paths)
-        self.forward_path: list[TrajectoryPoint] = []
-        self.return_path: list[TrajectoryPoint] = []
-        self.full_trajectory: list[TrajectoryPoint] = []
+        self.forward_path: List[TrajectoryPoint] = []
+        self.return_path: List[TrajectoryPoint] = []
+        self.full_trajectory: List[TrajectoryPoint] = []
 
     def update_from_fc(self, x: float, y: float, z: float, yaw: float) -> None:
         self.global_pos.x = float(x)
@@ -215,9 +199,7 @@ class CoordinateManager:
         self.global_pos.z = float(z)
         self.global_pos.yaw_deg = float(yaw)
 
-    def record_path_point(
-        self, state: MissionState, x: float, y: float, z: float, yaw: float
-    ) -> None:
+    def record_path_point(self, state: MissionState, x: float, y: float, z: float, yaw: float) -> None:
         """Records every single coordinate along the flight path from start to finish."""
         pt = TrajectoryPoint(
             timestamp=time.time(),
@@ -246,13 +228,11 @@ class CoordinateManager:
         else:
             self.return_path.append(pt)
 
-    def get_reverse_return_waypoints(self) -> list[tuple[float, float, float]]:
+    def get_reverse_return_waypoints(self) -> List[Tuple[float, float, float]]:
         """Returns the recorded forward path in reverse order as 3D (x, y, z) waypoints for return navigation."""
         return [(pt.x, pt.y, pt.z) for pt in reversed(self.forward_path)]
 
-    def register_landmark(
-        self, name: str, x_global: float, y_global: float, z_global: float
-    ) -> None:
+    def register_landmark(self, name: str, x_global: float, y_global: float, z_global: float) -> None:
         self.landmarks[name] = (float(x_global), float(y_global), float(z_global))
 
     def compute_local_coordinates(
@@ -261,16 +241,12 @@ class CoordinateManager:
         d_left_wall: float = 0.0,
         d_right_wall: float = 0.0,
         fwd_dist: float = float("inf"),
-        target_qr_box_dist: float | None = None,
+        target_qr_box_dist: Optional[float] = None,
     ) -> LocalSectionCoordinate:
         gx, gy, gz = self.global_pos.x, self.global_pos.y, self.global_pos.z
         alt = self.global_pos.altitude
 
-        if state in (
-            MissionState.INIT,
-            MissionState.TAKEOFF,
-            MissionState.SCAN_START_QR,
-        ):
+        if state in (MissionState.INIT, MissionState.TAKEOFF, MissionState.SCAN_START_QR):
             sec = "START_ZONE"
             x_rel = gx
             y_rel = gy
@@ -372,7 +348,7 @@ class CoordinateManager:
 # ===========================================================================
 class CameraInterface(abc.ABC):
     @abc.abstractmethod
-    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         pass
 
     @abc.abstractmethod
@@ -384,14 +360,14 @@ class MockCamera(CameraInterface):
     def __init__(self, width: int = 640, height: int = 480) -> None:
         self.width = width
         self.height = height
-        self._custom_frame: np.ndarray | None = None
-        self._custom_depth: np.ndarray | None = None
+        self._custom_frame: Optional[np.ndarray] = None
+        self._custom_depth: Optional[np.ndarray] = None
 
-    def set_frame(self, bgr: np.ndarray, depth_mm: np.ndarray | None = None) -> None:
+    def set_frame(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray] = None) -> None:
         self._custom_frame = bgr
         self._custom_depth = depth_mm
 
-    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         if self._custom_frame is not None:
             depth = (
                 self._custom_depth
@@ -411,13 +387,11 @@ class MockCamera(CameraInterface):
 
 
 class WebcamCamera(CameraInterface):
-    def __init__(
-        self, camera_index: int = 0, width: int = 640, height: int = 480
-    ) -> None:
+    def __init__(self, camera_index: int = 0, width: int = 640, height: int = 480) -> None:
         self.camera_index = camera_index
         self.width = width
         self.height = height
-        self._cap: cv2.VideoCapture | None = None
+        self._cap: Optional[cv2.VideoCapture] = None
 
     def _ensure_opened(self) -> bool:
         if self._cap is None:
@@ -427,7 +401,7 @@ class WebcamCamera(CameraInterface):
                 self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         return self._cap.isOpened()
 
-    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         if not self._ensure_opened() or self._cap is None:
             return None, None
         ret, frame = self._cap.read()
@@ -447,13 +421,7 @@ class WebcamCamera(CameraInterface):
 
 
 class OakDCamera(CameraInterface):
-    def __init__(
-        self,
-        rgb_fps: int = 30,
-        depth_fps: int = 30,
-        width: int = 640,
-        height: int = 480,
-    ) -> None:
+    def __init__(self, rgb_fps: int = 30, depth_fps: int = 30, width: int = 640, height: int = 480) -> None:
         self.rgb_fps = rgb_fps
         self.depth_fps = depth_fps
         self.width = width
@@ -461,7 +429,7 @@ class OakDCamera(CameraInterface):
         self._device: Any = None
         self._q_rgb: Any = None
         self._q_depth: Any = None
-        self._fallback: WebcamCamera | None = None
+        self._fallback: Optional[WebcamCamera] = None
         self._initialized = False
 
     def _init_pipeline(self) -> None:
@@ -470,7 +438,6 @@ class OakDCamera(CameraInterface):
         self._initialized = True
         try:
             import depthai as dai  # type: ignore
-
             pipeline = dai.Pipeline()
 
             cam_rgb = pipeline.create(dai.node.ColorCamera)
@@ -482,9 +449,7 @@ class OakDCamera(CameraInterface):
             mono_left = pipeline.create(dai.node.MonoCamera)
             mono_right = pipeline.create(dai.node.MonoCamera)
             mono_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-            mono_right.setResolution(
-                dai.MonoCameraProperties.SensorResolution.THE_400_P
-            )
+            mono_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
             mono_left.setCamera("left")
             mono_right.setCamera("right")
             mono_left.setFps(self.depth_fps)
@@ -511,19 +476,13 @@ class OakDCamera(CameraInterface):
 
             self._device = dai.Device(pipeline)
             self._q_rgb = self._device.getOutputQueue("rgb", maxSize=4, blocking=False)
-            self._q_depth = self._device.getOutputQueue(
-                "depth", maxSize=4, blocking=False
-            )
-            log.info(
-                "[CAMERA] OAK-D Lite Stereo Depth Camera initialized successfully."
-            )
-        except Exception as err:  # noqa: BLE001
-            log.warning(
-                f"[CAMERA] OAK-D initialization failed ({err}). Falling back to Webcam."
-            )
+            self._q_depth = self._device.getOutputQueue("depth", maxSize=4, blocking=False)
+            log.info("[CAMERA] OAK-D Lite Stereo Depth Camera initialized successfully.")
+        except Exception as err:
+            log.warning(f"[CAMERA] OAK-D initialization failed ({err}). Falling back to Webcam.")
             self._fallback = WebcamCamera(width=self.width, height=self.height)
 
-    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
+    def read(self) -> Tuple[Optional[np.ndarray], Optional[np.ndarray]]:
         self._init_pipeline()
         if self._fallback is not None:
             return self._fallback.read()
@@ -549,36 +508,6 @@ class OakDCamera(CameraInterface):
         self._initialized = False
 
 
-class ThreeCameraManager(CameraInterface):
-    """
-    3-Camera Suite Manager (Forward OAK-D Lite + Downward Arducam HQ + Skydroid FPV).
-    """
-
-    def __init__(
-        self,
-        forward_cam: CameraInterface | None = None,
-        downward_cam: CameraInterface | None = None,
-        fpv_cam: CameraInterface | None = None,
-    ) -> None:
-        self.forward_cam = forward_cam or OakDCamera()
-        self.downward_cam = downward_cam or WebcamCamera(camera_index=1)
-        self.fpv_cam = fpv_cam or WebcamCamera(camera_index=2)
-
-    def read(self) -> tuple[np.ndarray | None, np.ndarray | None]:
-        return self.forward_cam.read()
-
-    def read_downward(self) -> tuple[np.ndarray | None, np.ndarray | None]:
-        return self.downward_cam.read()
-
-    def read_fpv(self) -> tuple[np.ndarray | None, np.ndarray | None]:
-        return self.fpv_cam.read()
-
-    def release(self) -> None:
-        self.forward_cam.release()
-        self.downward_cam.release()
-        self.fpv_cam.release()
-
-
 # ===========================================================================
 # 4. STEREO DEPTH SAMPLING & REASONING
 # ===========================================================================
@@ -586,8 +515,8 @@ DEPTH_UNKNOWN_M = float("inf")
 
 
 def depth_at_bbox(
-    depth_mm: np.ndarray | None,
-    bbox: tuple[int, int, int, int],
+    depth_mm: Optional[np.ndarray],
+    bbox: Tuple[int, int, int, int],
     percentile: float = 50.0,
 ) -> float:
     if depth_mm is None:
@@ -628,25 +557,19 @@ def depth_action(distance_m: float, config: MissionConfig = CFG) -> str:
 PEOPLE_SHAPES = ["circle", "ellipse", "hexagon", "rounded_box"]
 
 
-def draw_circle(
-    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
-) -> None:
+def draw_circle(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     radius = max((x2 - x1), (y2 - y1)) // 2
     cv2.circle(img, (cx, cy), radius, color, 3)
 
 
-def draw_ellipse(
-    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
-) -> None:
+def draw_ellipse(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     ax, ay = max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2)
     cv2.ellipse(img, (cx, cy), (ax, ay), 0, 0, 360, color, 3)
 
 
-def draw_hexagon(
-    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple
-) -> None:
+def draw_hexagon(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple) -> None:
     cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
     w, h = max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2)
     pts = []
@@ -659,9 +582,7 @@ def draw_hexagon(
     cv2.polylines(img, [poly], isClosed=True, color=color, thickness=3)
 
 
-def draw_rounded_box(
-    img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple, r: int = 15
-) -> None:
+def draw_rounded_box(img: np.ndarray, x1: int, y1: int, x2: int, y2: int, color: tuple, r: int = 15) -> None:
     r = min(r, max(1, (x2 - x1) // 2), max(1, (y2 - y1) // 2))
     cv2.line(img, (x1 + r, y1), (x2 - r, y1), color, 3)
     cv2.line(img, (x1 + r, y2), (x2 - r, y2), color, 3)
@@ -702,7 +623,7 @@ def detect_green_banner(
     bgr: np.ndarray,
     yolo_model: Any = None,
     yolo_results: Any = None,
-) -> tuple[int, int, int, int] | None:
+) -> Optional[Tuple[int, int, int, int]]:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, BANNER_HSV_LOWER, BANNER_HSV_UPPER)
     kernel = np.ones((7, 7), np.uint8)
@@ -741,19 +662,16 @@ def detect_green_banner(
     return best_box
 
 
-def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
-    results: list[tuple[str, np.ndarray]] = []
+def detect_qr_codes(bgr: np.ndarray) -> List[Tuple[str, np.ndarray]]:
+    results: List[Tuple[str, np.ndarray]] = []
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-    thresh = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4
-    )
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4)
 
     stages = [(gray, 1.0), (upscaled, 2.5), (thresh, 1.0)]
 
     try:
         from pyzbar.pyzbar import decode as zbar_decode  # type: ignore
-
         for img_data, sc in stages:
             for obj in zbar_decode(img_data):
                 if obj.type != "QRCODE":
@@ -761,22 +679,16 @@ def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
                 text = obj.data.decode("utf-8", errors="ignore").strip()
                 if not text:
                     continue
-                quad = np.array(
-                    [[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int
-                )
+                quad = np.array([[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int)
                 results.append((text, quad))
             if results:
                 return results
-    except Exception:  # noqa: BLE001, S110
+    except Exception:
         pass
 
     qr_detector = cv2.QRCodeDetector()
     for img_data, sc in stages:
-        var = (
-            cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR)
-            if img_data.ndim == 2
-            else img_data
-        )
+        var = cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR) if img_data.ndim == 2 else img_data
         ok, decoded_info, points, _ = qr_detector.detectAndDecodeMulti(var)
         if ok and points is not None and decoded_info:
             for t, pts in zip(decoded_info, points):
@@ -794,16 +706,12 @@ RED_VAL_MIN = 80
 RED_ZONE_MIN_AREA = 500
 
 
-def find_red_zones(bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
+def find_red_zones(bgr: np.ndarray) -> List[Tuple[int, int, int, int]]:
     hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
     h, s, v = cv2.split(hsv)
     mask = np.zeros(hsv.shape[:2], dtype=np.uint8)
     for lo, hi in RED_HUE_RANGES:
-        mask |= (
-            ((h >= lo) & (h <= hi) & (s >= RED_SAT_MIN) & (v >= RED_VAL_MIN)).astype(
-                np.uint8
-            )
-        ) * 255
+        mask |= (((h >= lo) & (h <= hi) & (s >= RED_SAT_MIN) & (v >= RED_VAL_MIN)).astype(np.uint8)) * 255
     kernel = np.ones((9, 9), np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
     mask = cv2.dilate(mask, kernel, iterations=1)
@@ -818,11 +726,11 @@ def find_red_zones(bgr: np.ndarray) -> list[tuple[int, int, int, int]]:
 
 def detect_obstacles_with_depth(
     bgr: np.ndarray,
-    depth_mm: np.ndarray | None,
+    depth_mm: Optional[np.ndarray],
     yolo_model: Any = None,
     yolo_results: Any = None,
     config: MissionConfig = CFG,
-) -> list[dict]:
+) -> List[dict]:
     frame = preprocess_clahe(bgr)
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
     h, w = frame.shape[:2]
@@ -830,9 +738,7 @@ def detect_obstacles_with_depth(
 
     _, _, val = cv2.split(hsv)
     dark_mask = ((val <= 90).astype(np.uint8)) * 255
-    contours, _ = cv2.findContours(
-        dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-    )
+    contours, _ = cv2.findContours(dark_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     obstacles = []
     for c in contours:
@@ -849,18 +755,16 @@ def detect_obstacles_with_depth(
         cx, cy, radius = int(cx), int(cy), int(radius)
         bbox = (cx - radius, cy - radius, radius * 2, radius * 2)
         dist = depth_at_bbox(depth_mm, bbox)
-        obstacles.append(
-            {
-                "cx": cx,
-                "cy": cy,
-                "radius": radius,
-                "bbox": bbox,
-                "dist_m": dist,
-                "action": depth_action(dist, config),
-                "source": "classical_cv",
-                "class_name": "obstacle",
-            }
-        )
+        obstacles.append({
+            "cx": cx,
+            "cy": cy,
+            "radius": radius,
+            "bbox": bbox,
+            "dist_m": dist,
+            "action": depth_action(dist, config),
+            "source": "classical_cv",
+            "class_name": "obstacle",
+        })
 
     if yolo_results is not None and yolo_model is not None:
         for r in yolo_results:
@@ -876,19 +780,17 @@ def detect_obstacles_with_depth(
                 bw, bh = x2 - x1, y2 - y1
                 bbox = (x1, y1, bw, bh)
                 dist = depth_at_bbox(depth_mm, bbox)
-                obstacles.append(
-                    {
-                        "cx": x1 + bw // 2,
-                        "cy": y1 + bh // 2,
-                        "radius": max(bw, bh) // 2,
-                        "bbox": bbox,
-                        "dist_m": dist,
-                        "action": depth_action(dist, config),
-                        "source": "yolo",
-                        "class_name": name,
-                        "conf": conf,
-                    }
-                )
+                obstacles.append({
+                    "cx": x1 + bw // 2,
+                    "cy": y1 + bh // 2,
+                    "radius": max(bw, bh) // 2,
+                    "bbox": bbox,
+                    "dist_m": dist,
+                    "action": depth_action(dist, config),
+                    "source": "yolo",
+                    "class_name": name,
+                    "conf": conf,
+                })
 
     return obstacles
 
@@ -909,21 +811,18 @@ class PerceptionPipeline:
         self._yolo_initialized = True
         try:
             from ultralytics import YOLO  # type: ignore
-
             self._yolo_model = YOLO("yolov8n.pt")
             log.info("[AI PERCEPTION] YOLOv8 model loaded successfully.")
-        except Exception as err:  # noqa: BLE001
-            log.warning(
-                f"[AI PERCEPTION] YOLOv8 not available ({err}). Falling back to Classical CV."
-            )
+        except Exception as err:
+            log.warning(f"[AI PERCEPTION] YOLOv8 not available ({err}). Falling back to Classical CV.")
             self._yolo_model = None
 
-    def perceive(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
+    def perceive(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
         self._lazy_load_yolo()
 
         _yolo_res = None
-        humans: list[dict] = []
-        yolo_all: list[tuple] = []
+        humans: List[dict] = []
+        yolo_all: List[tuple] = []
 
         if self._yolo_model is not None:
             try:
@@ -941,22 +840,18 @@ class PerceptionPipeline:
                         yolo_all.append((name, conf, bbox, dist))
                         if name == "person":
                             bw, bh = x2 - x1, y2 - y1
-                            humans.append(
-                                {
-                                    "bbox": bbox,
-                                    "dist_m": dist,
-                                    "action": depth_action(dist, self.config),
-                                    "conf": conf,
-                                    "cx": x1 + bw // 2,
-                                    "cy": y1 + bh // 2,
-                                }
-                            )
-            except Exception as err:  # noqa: BLE001
+                            humans.append({
+                                "bbox": bbox,
+                                "dist_m": dist,
+                                "action": depth_action(dist, self.config),
+                                "conf": conf,
+                                "cx": x1 + bw // 2,
+                                "cy": y1 + bh // 2,
+                            })
+            except Exception as err:
                 log.debug(f"YOLO inference error: {err}")
 
-        obstacles = detect_obstacles_with_depth(
-            bgr, depth_mm, self._yolo_model, _yolo_res, self.config
-        )
+        obstacles = detect_obstacles_with_depth(bgr, depth_mm, self._yolo_model, _yolo_res, self.config)
         red_zones = find_red_zones(bgr)
         qr_codes = detect_qr_codes(bgr)
         banner_box = detect_green_banner(bgr, self._yolo_model, _yolo_res)
@@ -979,13 +874,10 @@ class PerceptionPipeline:
         d_right_wall = _get_col_depth(w_f - edge_w, edge_w)
 
         centre_stop = any(
-            o["action"] == "STOP" and abs(o["cx"] - w_f // 2) < col_w // 2
-            for o in obstacles
+            o["action"] == "STOP" and abs(o["cx"] - w_f // 2) < col_w // 2 for o in obstacles
         )
         human_stop = any(h["action"] == "STOP" for h in humans)
-        red_ahead = any(
-            col_w <= (rx + rw // 2) <= col_w * 2 for rx, ry, rw, rh in red_zones
-        )
+        red_ahead = any(col_w <= (rx + rw // 2) <= col_w * 2 for rx, ry, rw, rh in red_zones)
 
         if centre_stop or human_stop or d_centre < self.config.OBS_CRITICAL_STOP_M:
             steering = "STOP"
@@ -1031,15 +923,7 @@ def annotate_mission_frame(
 
     for rx, ry, rw, rh in percept.get("red_zones", []):
         cv2.rectangle(out, (rx, ry), (rx + rw, ry + rh), (0, 0, 240), 3)
-        cv2.putText(
-            out,
-            "RED ZONE",
-            (rx, max(15, ry - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (0, 0, 240),
-            2,
-        )
+        cv2.putText(out, "RED ZONE", (rx, max(15, ry - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 240), 2)
 
     for obs in percept.get("obstacles", []):
         if obs.get("source") == "yolo":
@@ -1047,36 +931,16 @@ def annotate_mission_frame(
         cx, cy, rad = obs["cx"], obs["cy"], obs["radius"]
         dist = obs["dist_m"]
         act = obs["action"]
-        col = (
-            (0, 220, 0)
-            if act == "CONTINUE"
-            else ((0, 165, 255) if act == "SLOW" else (0, 0, 255))
-        )
+        col = (0, 220, 0) if act == "CONTINUE" else ((0, 165, 255) if act == "SLOW" else (0, 0, 255))
         cv2.circle(out, (cx, cy), rad, col, 2)
-        cv2.putText(
-            out,
-            f"OBS {dist:.1f}m [{act}]",
-            (cx - rad, max(15, cy - rad - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
-            col,
-            2,
-        )
+        cv2.putText(out, f"OBS {dist:.1f}m [{act}]", (cx - rad, max(15, cy - rad - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 2)
 
     for name, conf, (x1, y1, bw, bh), dist in percept.get("yolo_all", []):
         if name == "person":
             continue
         col = (255, 200, 0)
         cv2.rectangle(out, (x1, y1), (x1 + bw, y1 + bh), col, 2)
-        cv2.putText(
-            out,
-            f"{name} {conf:.2f} {dist:.1f}m",
-            (x1, max(15, y1 - 6)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.45,
-            col,
-            2,
-        )
+        cv2.putText(out, f"{name} {conf:.2f} {dist:.1f}m", (x1, max(15, y1 - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, col, 2)
 
     for idx, human in enumerate(percept.get("humans", [])):
         x1, y1, bw, bh = human["bbox"]
@@ -1086,42 +950,18 @@ def annotate_mission_frame(
         shape_type = PEOPLE_SHAPES[idx % len(PEOPLE_SHAPES)]
         col = (255, 0, 220)
         SHAPE_FUNCS[shape_type](out, x1, y1, x2, y2, col)
-        cv2.putText(
-            out,
-            f"HUMAN [{shape_type}] {dist:.1f}m [{act}]",
-            (x1, max(15, y1 - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            col,
-            2,
-        )
+        cv2.putText(out, f"HUMAN [{shape_type}] {dist:.1f}m [{act}]", (x1, max(15, y1 - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, col, 2)
 
     if percept.get("banner_box") is not None:
         bx, by, bw, bh = percept["banner_box"]
         cv2.rectangle(out, (bx, by), (bx + bw, by + bh), (0, 255, 100), 3)
-        cv2.putText(
-            out,
-            "GREEN BANNER",
-            (bx, max(15, by - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 255, 100),
-            2,
-        )
+        cv2.putText(out, "GREEN BANNER", (bx, max(15, by - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 100), 2)
 
     for text, quad in percept.get("qr_codes", []):
         cv2.polylines(out, [quad.reshape(-1, 1, 2)], True, (255, 255, 0), 3)
         qx, qy = int(quad[0][0]), int(quad[0][1])
         match_tag = " [TARGET MATCH!]" if (text == target_id and target_id) else ""
-        cv2.putText(
-            out,
-            f"QR: {text[:20]}{match_tag}",
-            (qx, max(15, qy - 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            (255, 255, 0),
-            2,
-        )
+        cv2.putText(out, f"QR: {text[:20]}{match_tag}", (qx, max(15, qy - 10)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 0), 2)
 
     bar_y = h - 22
     col_w3 = w // 3
@@ -1140,60 +980,20 @@ def annotate_mission_frame(
     for i, (d, tag) in enumerate([(d_l, "LEFT"), (d_c, "CTR"), (d_r, "RIGHT")]):
         x0 = i * col_w3
         cv2.rectangle(out, (x0, bar_y - 10), (x0 + col_w3, bar_y), _bar_c(d), -1)
-        cv2.putText(
-            out,
-            f"{tag}: {d:.1f}m",
-            (x0 + 6, bar_y - 1),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.38,
-            (255, 255, 255),
-            1,
-        )
+        cv2.putText(out, f"{tag}: {d:.1f}m", (x0 + 6, bar_y - 1), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (255, 255, 255), 1)
 
     st = percept.get("steering", "FORWARD")
-    st_col = (
-        (0, 255, 0)
-        if st == "FORWARD"
-        else ((0, 200, 255) if st in ("LEFT", "RIGHT") else (0, 0, 255))
-    )
-    cv2.putText(
-        out,
-        f"STEER: {st}",
-        (w // 2 - 50, h - 35),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        st_col,
-        2,
-    )
+    st_col = (0, 255, 0) if st == "FORWARD" else ((0, 200, 255) if st in ("LEFT", "RIGHT") else (0, 0, 255))
+    cv2.putText(out, f"STEER: {st}", (w // 2 - 50, h - 35), cv2.FONT_HERSHEY_SIMPLEX, 0.65, st_col, 2)
 
     cv2.rectangle(out, (0, 0), (w, 58), (20, 20, 20), -1)
-    cv2.putText(
-        out,
-        f"STATE: {state.name} | PILOT: Bhakti Revankar",
-        (10, 20),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (0, 240, 240),
-        2,
-    )
-    cv2.putText(
-        out,
-        f"TGT QR: {target_id if target_id else 'SEARCHING'}",
-        (w - 240, 20),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (255, 220, 0),
-        2,
-    )
+    cv2.putText(out, f"STATE: {state.name} | PILOT: R2D2", (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 240, 240), 2)
+    cv2.putText(out, f"TGT QR: {target_id if target_id else 'SEARCHING'}", (w - 240, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 220, 0), 2)
 
     global_str = f"GLOBAL NED: X:{gpos.x:+.1f}m | Y:{gpos.y:+.1f}m | Alt:{gpos.altitude:.1f}m | Yaw:{gpos.yaw_deg:.0f}°"
     local_str = f"LOCAL [{lpos.section_name}]: X_rel:{lpos.x_rel:+.2f}m | Y_lat:{lpos.y_rel:+.2f}m | Rem:{lpos.distance_to_goal:.1f}m"
-    cv2.putText(
-        out, global_str, (10, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 255, 180), 1
-    )
-    cv2.putText(
-        out, local_str, (10, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 200, 150), 1
-    )
+    cv2.putText(out, global_str, (10, 38), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (180, 255, 180), 1)
+    cv2.putText(out, local_str, (10, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (255, 200, 150), 1)
 
     return out
 
@@ -1203,19 +1003,15 @@ def annotate_mission_frame(
 # ===========================================================================
 class FlightControllerInterface(abc.ABC):
     @abc.abstractmethod
-    def get_position_ned(self) -> tuple[float, float, float, float]:
+    def get_position_ned(self) -> Tuple[float, float, float, float]:
         pass
 
     @abc.abstractmethod
-    def send_body_velocity(
-        self, vx: float, vy: float, vz: float, duration: float = 0.2
-    ) -> None:
+    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
         pass
 
     @abc.abstractmethod
-    def send_local_velocity(
-        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
-    ) -> None:
+    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
         pass
 
     @abc.abstractmethod
@@ -1260,15 +1056,13 @@ class MockFlightController(FlightControllerInterface):
         self.sim_yaw = 0.0
         self.armed = False
         self.mode = "GUIDED"
-        self.command_log: list[str] = []
-        self.winch_pwm_history: list[int] = []
+        self.command_log: List[str] = []
+        self.winch_pwm_history: List[int] = []
 
-    def get_position_ned(self) -> tuple[float, float, float, float]:
+    def get_position_ned(self) -> Tuple[float, float, float, float]:
         return (self.sim_x, self.sim_y, self.sim_z, self.sim_yaw)
 
-    def send_body_velocity(
-        self, vx: float, vy: float, vz: float, duration: float = 0.2
-    ) -> None:
+    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
         vx = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vx))
         vy = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vy))
         vz = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vz))
@@ -1280,19 +1074,13 @@ class MockFlightController(FlightControllerInterface):
         self.sim_x += gx * duration
         self.sim_y += gy * duration
         self.sim_z += vz * duration
-        self.command_log.append(
-            f"BODY_VEL vx={vx:.2f} vy={vy:.2f} vz={vz:.2f} dt={duration:.2f}"
-        )
+        self.command_log.append(f"BODY_VEL vx={vx:.2f} vy={vy:.2f} vz={vz:.2f} dt={duration:.2f}")
 
-    def send_local_velocity(
-        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
-    ) -> None:
+    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
         self.sim_x += vx_n * duration
         self.sim_y += vy_e * duration
         self.sim_z += vz_d * duration
-        self.command_log.append(
-            f"LOCAL_VEL vx={vx_n:.2f} vy={vy_e:.2f} vz={vz_d:.2f} dt={duration:.2f}"
-        )
+        self.command_log.append(f"LOCAL_VEL vx={vx_n:.2f} vy={vy_e:.2f} vz={vz_d:.2f} dt={duration:.2f}")
 
     def arm_and_takeoff(self, target_alt: float) -> bool:
         self.armed = True
@@ -1352,10 +1140,7 @@ class MAVLinkFlightController(FlightControllerInterface):
 
     def _connect(self) -> None:
         from dronekit import connect as dk_connect  # type: ignore
-
-        log.info(
-            f"[FC] Connecting to Flight Controller at '{self.connection_string}'..."
-        )
+        log.info(f"[FC] Connecting to Flight Controller at '{self.connection_string}'...")
         start_time = time.time()
         self._vehicle = dk_connect(
             self.connection_string,
@@ -1365,24 +1150,18 @@ class MAVLinkFlightController(FlightControllerInterface):
         elapsed = time.time() - start_time
         log.info(f"[FC] Connected in {elapsed:.1f}s. Firmware: {self._vehicle.version}")
 
-    def get_position_ned(self) -> tuple[float, float, float, float]:
+    def get_position_ned(self) -> Tuple[float, float, float, float]:
         if self._vehicle is None:
             return (0.0, 0.0, 0.0, 0.0)
         loc = self._vehicle.location.local_frame
         alt = float(self._vehicle.location.global_relative_frame.alt or 0.0)
-        yaw = (
-            float(self._vehicle.attitude.yaw * 180.0 / math.pi)
-            if self._vehicle.attitude
-            else 0.0
-        )
+        yaw = float(self._vehicle.attitude.yaw * 180.0 / math.pi) if self._vehicle.attitude else 0.0
         x = float(loc.north) if loc and loc.north is not None else 0.0
         y = float(loc.east) if loc and loc.east is not None else 0.0
         z = -alt
         return (x, y, z, yaw)
 
-    def send_body_velocity(
-        self, vx: float, vy: float, vz: float, duration: float = 0.2
-    ) -> None:
+    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
         if self._vehicle is None:
             return
         from pymavlink import mavutil  # type: ignore
@@ -1392,52 +1171,32 @@ class MAVLinkFlightController(FlightControllerInterface):
         vz = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vz))
 
         msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
-            0,
-            0,
-            0,
+            0, 0, 0,
             mavutil.mavlink.MAV_FRAME_BODY_NED,
             0b0000111111000111,
-            0,
-            0,
-            0,
-            vx,
-            vy,
-            vz,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0, 0, 0,
+            vx, vy, vz,
+            0, 0, 0,
+            0, 0,
         )
         end_time = time.time() + duration
         while time.time() < end_time:
             self._vehicle.send_mavlink(msg)
             time.sleep(0.1)
 
-    def send_local_velocity(
-        self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2
-    ) -> None:
+    def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
         if self._vehicle is None:
             return
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
-            0,
-            0,
-            0,
+            0, 0, 0,
             mavutil.mavlink.MAV_FRAME_LOCAL_NED,
             0b0000111111000111,
-            0,
-            0,
-            0,
-            vx_n,
-            vy_e,
-            vz_d,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0, 0, 0,
+            vx_n, vy_e, vz_d,
+            0, 0, 0,
+            0, 0,
         )
         end_time = time.time() + duration
         while time.time() < end_time:
@@ -1449,9 +1208,7 @@ class MAVLinkFlightController(FlightControllerInterface):
             return False
         from dronekit import VehicleMode  # type: ignore
 
-        log.info(
-            f"[FC] Setting mode GUIDED and arming (Timeout: {self.config.ARM_TIMEOUT_S}s)..."
-        )
+        log.info(f"[FC] Setting mode GUIDED and arming (Timeout: {self.config.ARM_TIMEOUT_S}s)...")
         self._vehicle.mode = VehicleMode("GUIDED")
         self._vehicle.armed = True
 
@@ -1462,9 +1219,7 @@ class MAVLinkFlightController(FlightControllerInterface):
                 return False
             time.sleep(0.3)
 
-        log.info(
-            f"[FC] Taking off to {target_alt:.1f} m (Timeout: {self.config.TAKEOFF_TIMEOUT_S}s)..."
-        )
+        log.info(f"[FC] Taking off to {target_alt:.1f} m (Timeout: {self.config.TAKEOFF_TIMEOUT_S}s)...")
         self._vehicle.simple_takeoff(target_alt)
 
         climb_start = time.time()
@@ -1491,17 +1246,9 @@ class MAVLinkFlightController(FlightControllerInterface):
         self._vehicle.simple_goto(target)
 
         alt_start = time.time()
-        while (
-            abs(
-                float(self._vehicle.location.global_relative_frame.alt or 0.0)
-                - target_alt
-            )
-            > self.config.ALTITUDE_TOLERANCE_M
-        ):
+        while abs(float(self._vehicle.location.global_relative_frame.alt or 0.0) - target_alt) > self.config.ALTITUDE_TOLERANCE_M:
             if time.time() - alt_start > self.config.ALTITUDE_CHANGE_TIMEOUT_S:
-                log.warning(
-                    "[FC TIMEOUT] Altitude transition timed out; proceeding with current altitude."
-                )
+                log.warning("[FC TIMEOUT] Altitude transition timed out; proceeding with current altitude.")
                 return False
             time.sleep(0.2)
         return True
@@ -1512,17 +1259,14 @@ class MAVLinkFlightController(FlightControllerInterface):
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.command_long_encode(
-            0,
-            0,
+            0, 0,
             mavutil.mavlink.MAV_CMD_CONDITION_YAW,
             0,
             heading_deg,
             self.config.YAW_RATE_DPS,
             1 if relative else 0,
             1 if relative else 0,
-            0,
-            0,
-            0,
+            0, 0, 0,
         )
         self._vehicle.send_mavlink(msg)
         time.sleep(1.0)
@@ -1533,17 +1277,12 @@ class MAVLinkFlightController(FlightControllerInterface):
         from pymavlink import mavutil  # type: ignore
 
         msg = self._vehicle.message_factory.command_long_encode(
-            0,
-            0,
+            0, 0,
             mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
             0,
             self.config.WINCH_SERVO_CHANNEL,
             pwm_us,
-            0,
-            0,
-            0,
-            0,
-            0,
+            0, 0, 0, 0, 0,
         )
         self._vehicle.send_mavlink(msg)
 
@@ -1563,9 +1302,7 @@ class MAVLinkFlightController(FlightControllerInterface):
             return False
         from dronekit import VehicleMode  # type: ignore
 
-        log.info(
-            f"[FC] Switching to LAND mode (Timeout: {self.config.LANDING_TIMEOUT_S}s)..."
-        )
+        log.info(f"[FC] Switching to LAND mode (Timeout: {self.config.LANDING_TIMEOUT_S}s)...")
         self._vehicle.mode = VehicleMode("LAND")
         land_start = time.time()
         while float(self._vehicle.location.global_relative_frame.alt or 0.0) > 0.15:
@@ -1596,22 +1333,16 @@ def create_flight_controller(
         return MockFlightController(config=config)
 
     try:
-        return MAVLinkFlightController(
-            connection_string=connection_string, config=config
-        )
-    except Exception as err:  # noqa: BLE001
-        log.error(
-            f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController."
-        )
+        return MAVLinkFlightController(connection_string=connection_string, config=config)
+    except Exception as err:
+        log.error(f"Failed to connect to MAVLink Flight Controller ({err}). Falling back to MockFlightController.")
         return MockFlightController(config=config)
 
 
 # ===========================================================================
 # 10. WINCH SEQUENCE & COG COMPENSATION
 # ===========================================================================
-def execute_winch_delivery(
-    fc: FlightControllerInterface, config: MissionConfig = CFG
-) -> None:
+def execute_winch_delivery(fc: FlightControllerInterface, config: MissionConfig = CFG) -> None:
     log.info("[WINCH] Commencing controlled payload lowering...")
     fc.set_winch(config.WINCH_LOWER_PWM)
     time.sleep(config.WINCH_LOWER_TIME_S)
@@ -1631,12 +1362,8 @@ def execute_winch_delivery(
     fc.set_winch(config.WINCH_NEUTRAL_PWM)
     log.info("[WINCH] Hoist sequence completed.")
 
-    cg_shift_m = (
-        config.PAYLOAD_MASS_KG * config.PAYLOAD_COG_OFFSET_X_M
-    ) / config.DRONE_EMPTY_MASS_KG
-    log.info(
-        f"[COG] Post-drop CoG shift = {cg_shift_m * 1000.0:.2f} mm. Applying feed-forward forward pitch bias."
-    )
+    cg_shift_m = (config.PAYLOAD_MASS_KG * config.PAYLOAD_COG_OFFSET_X_M) / config.DRONE_EMPTY_MASS_KG
+    log.info(f"[COG] Post-drop CoG shift = {cg_shift_m * 1000.0:.2f} mm. Applying feed-forward forward pitch bias.")
     fc.send_body_velocity(vx=cg_shift_m * 0.8, vy=0.0, vz=0.0, duration=1.5)
     time.sleep(0.5)
 
@@ -1647,65 +1374,38 @@ def execute_winch_delivery(
 class FlightDataRecorder:
     def __init__(self, log_path: str = "flight_data_log.csv") -> None:
         self.filepath = log_path
-        self.file = open(self.filepath, mode="w", newline="")  # noqa: SIM115
+        self.file = open(self.filepath, mode="w", newline="")
         self.writer = csv.writer(self.file)
-        self.writer.writerow(
-            [
-                "timestamp",
-                "state",
-                "global_x",
-                "global_y",
-                "global_z",
-                "altitude",
-                "yaw_deg",
-                "section",
-                "local_x",
-                "local_y",
-                "local_z",
-                "dist_to_goal",
-                "fwd_depth_m",
-                "left_wall_m",
-                "right_wall_m",
-                "target_id",
-                "steering",
-                "num_obstacles",
-                "num_humans",
-                "author",
-            ]
-        )
+        self.writer.writerow([
+            "timestamp", "state", "global_x", "global_y", "global_z", "altitude",
+            "yaw_deg", "section", "local_x", "local_y", "local_z", "dist_to_goal",
+            "fwd_depth_m", "left_wall_m", "right_wall_m", "target_id", "steering",
+            "num_obstacles", "num_humans", "author"
+        ])
 
     def record(
         self,
         state: MissionState,
         gpos: GlobalCoordinate,
         lpos: LocalSectionCoordinate,
-        percept: dict[str, Any],
+        percept: Dict[str, Any],
         target_id: str = "",
     ) -> None:
-        self.writer.writerow(
-            [
-                f"{time.time():.3f}",
-                state.name,
-                f"{gpos.x:.3f}",
-                f"{gpos.y:.3f}",
-                f"{gpos.z:.3f}",
-                f"{gpos.altitude:.3f}",
-                f"{gpos.yaw_deg:.1f}",
-                lpos.section_name,
-                f"{lpos.x_rel:.3f}",
-                f"{lpos.y_rel:.3f}",
-                f"{lpos.z_rel:.3f}",
-                f"{lpos.distance_to_goal:.3f}",
-                f"{percept.get('fwd_dist_m', 0.0):.2f}",
-                f"{percept.get('d_left_wall', 0.0):.2f}",
-                f"{percept.get('d_right_wall', 0.0):.2f}",
-                target_id,
-                percept.get("steering", "FORWARD"),
-                len(percept.get("obstacles", [])),
-                len(percept.get("humans", [])),
-                "Bhakti Revankar",
-            ]
-        )
+        self.writer.writerow([
+            f"{time.time():.3f}",
+            state.name,
+            f"{gpos.x:.3f}", f"{gpos.y:.3f}", f"{gpos.z:.3f}", f"{gpos.altitude:.3f}",
+            f"{gpos.yaw_deg:.1f}", lpos.section_name,
+            f"{lpos.x_rel:.3f}", f"{lpos.y_rel:.3f}", f"{lpos.z_rel:.3f}", f"{lpos.distance_to_goal:.3f}",
+            f"{percept.get('fwd_dist_m', 0.0):.2f}",
+            f"{percept.get('d_left_wall', 0.0):.2f}",
+            f"{percept.get('d_right_wall', 0.0):.2f}",
+            target_id,
+            percept.get("steering", "FORWARD"),
+            len(percept.get("obstacles", [])),
+            len(percept.get("humans", [])),
+            "R2D2",
+        ])
         self.file.flush()
 
     def close(self) -> None:
@@ -1721,9 +1421,9 @@ class MissionFSM:
         self,
         fc: FlightControllerInterface,
         camera: CameraInterface,
-        coord_mgr: CoordinateManager | None = None,
-        perception: PerceptionPipeline | None = None,
-        recorder: FlightDataRecorder | None = None,
+        coord_mgr: Optional[CoordinateManager] = None,
+        perception: Optional[PerceptionPipeline] = None,
+        recorder: Optional[FlightDataRecorder] = None,
         config: MissionConfig = CFG,
     ) -> None:
         self.fc = fc
@@ -1742,7 +1442,7 @@ class MissionFSM:
         self.mission_start_time = time.time()
         self.step_count = 0
 
-    def step(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
+    def step(self, bgr: np.ndarray, depth_mm: Optional[np.ndarray]) -> Dict[str, Any]:
         self.step_count += 1
 
         gx, gy, gz, yaw = self.fc.get_position_ned()
@@ -1755,7 +1455,7 @@ class MissionFSM:
         red_zones = percept["red_zones"]
         qr_codes = percept["qr_codes"]
         banner_box = percept["banner_box"]
-        _steering = percept["steering"]
+        steering = percept["steering"]
         fwd_dist = percept["fwd_dist_m"]
         d_left_w = percept["d_left_wall"]
         d_right_w = percept["d_right_wall"]
@@ -1767,14 +1467,10 @@ class MissionFSM:
                 tgt_dist = depth_at_bbox(depth_mm, (qx - 30, qy - 30, 60, 60))
                 break
 
-        lpos = self.coord_mgr.compute_local_coordinates(
-            self.state, d_left_w, d_right_w, fwd_dist, tgt_dist
-        )
+        lpos = self.coord_mgr.compute_local_coordinates(self.state, d_left_w, d_right_w, fwd_dist, tgt_dist)
 
         if self.recorder is not None:
-            self.recorder.record(
-                self.state, self.coord_mgr.global_pos, lpos, percept, self.target_id
-            )
+            self.recorder.record(self.state, self.coord_mgr.global_pos, lpos, percept, self.target_id)
 
         safe_exempt = {
             MissionState.INIT,
@@ -1788,9 +1484,7 @@ class MissionFSM:
             threats = [t for t in (obstacles + humans) if t.get("action") == "STOP"]
             if threats:
                 self.state_before_avoid = self.state
-                log.warning(
-                    f"[SAFETY] Emergency STOP threat in {self.state.name} -> Entering AVOID_OBSTACLES!"
-                )
+                log.warning(f"[SAFETY] Emergency STOP threat in {self.state.name} -> Entering AVOID_OBSTACLES!")
                 self.fc.stop()
                 self.state = MissionState.AVOID_OBSTACLES
 
@@ -1808,9 +1502,7 @@ class MissionFSM:
                     self.coord_mgr.global_pos.y,
                     self.coord_mgr.global_pos.z,
                 )
-                log.info(
-                    f"[START_QR] Target Decoded: '{self.target_id}' -> FIND_GREEN_BANNER"
-                )
+                log.info(f"[START_QR] Target Decoded: '{self.target_id}' -> FIND_GREEN_BANNER")
                 self.state = MissionState.FIND_GREEN_BANNER
                 self.qr_fail_cnt = 0
             else:
@@ -1820,15 +1512,13 @@ class MissionFSM:
                 elif self.qr_fail_cnt < 20:
                     self.fc.set_yaw(20.0, relative=True)
                 else:
-                    log.warning(
-                        "[START_QR] Search timeout. Defaulting target to 'TARGET_A'"
-                    )
+                    log.warning("[START_QR] Search timeout. Defaulting target to 'TARGET_A'")
                     self.target_id = "TARGET_A"
                     self.state = MissionState.FIND_GREEN_BANNER
 
         elif self.state == MissionState.FIND_GREEN_BANNER:
             if banner_box is not None:
-                bx, _by, bw, _bh = banner_box
+                bx, by, bw, bh = banner_box
                 frame_cx = bgr.shape[1] // 2
                 banner_cx = bx + bw // 2
                 banner_dist = depth_at_bbox(depth_mm, banner_box)
@@ -1836,17 +1526,13 @@ class MissionFSM:
                     banner_dist = 6.0
 
                 lateral_err_px = banner_cx - frame_cx
-                log.info(
-                    f"[BANNER] Green Banner locked: Dist={banner_dist:.2f}m, CenterErr={lateral_err_px}px"
-                )
+                log.info(f"[BANNER] Green Banner locked: Dist={banner_dist:.2f}m, CenterErr={lateral_err_px}px")
 
                 if abs(lateral_err_px) > 35:
                     vy = max(-0.4, min(0.4, 0.003 * lateral_err_px))
                     self.fc.send_body_velocity(vx=0.0, vy=vy, vz=0.0, duration=0.3)
                 elif banner_dist > 2.5:
-                    self.fc.send_body_velocity(
-                        vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3
-                    )
+                    self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3)
                 else:
                     self.coord_mgr.register_landmark(
                         "CORRIDOR_ENTRY",
@@ -1854,9 +1540,7 @@ class MissionFSM:
                         self.coord_mgr.global_pos.y,
                         self.coord_mgr.global_pos.z,
                     )
-                    log.info(
-                        "[BANNER] Corridor entry reached. Descending to 10 ft (3m) -> ENTER_CORRIDOR"
-                    )
+                    log.info("[BANNER] Corridor entry reached. Descending to 10 ft (3m) -> ENTER_CORRIDOR")
                     self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
                     self.state = MissionState.ENTER_CORRIDOR
                 self.banner_search_cnt = 0
@@ -1864,34 +1548,22 @@ class MissionFSM:
                 self.banner_search_cnt += 1
                 self.fc.set_yaw(15.0, relative=True)
                 if self.banner_search_cnt > 24:
-                    log.warning(
-                        "[BANNER] Full 360° sweep completed. Forcing corridor entry."
-                    )
+                    log.warning("[BANNER] Full 360° sweep completed. Forcing corridor entry.")
                     self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
                     self.state = MissionState.ENTER_CORRIDOR
 
         elif self.state == MissionState.ENTER_CORRIDOR:
             if d_left_w < 3.0 and d_right_w < 3.0:
-                log.info(
-                    f"[ENTER_CORRIDOR] Walls detected (L:{d_left_w:.2f}m, R:{d_right_w:.2f}m) -> FOLLOW_CORRIDOR"
-                )
+                log.info(f"[ENTER_CORRIDOR] Walls detected (L:{d_left_w:.2f}m, R:{d_right_w:.2f}m) -> FOLLOW_CORRIDOR")
                 self.state = MissionState.FOLLOW_CORRIDOR
             else:
-                self.fc.send_body_velocity(
-                    vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3
-                )
+                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3)
 
         elif self.state == MissionState.FOLLOW_CORRIDOR:
-            lat_center_err = (
-                (d_right_w - d_left_w) / 2.0
-                if (d_left_w > 0 and d_right_w > 0)
-                else 0.0
-            )
+            lat_center_err = (d_right_w - d_left_w) / 2.0 if (d_left_w > 0 and d_right_w > 0) else 0.0
             vy_corr = max(-0.4, min(0.4, 0.45 * lat_center_err))
 
-            if (fwd_dist > 6.0 and d_left_w > 3.0 and d_right_w > 3.0) or (
-                lpos.x_rel >= self.config.CORRIDOR_LENGTH_EST_M
-            ):
+            if (fwd_dist > 6.0 and d_left_w > 3.0 and d_right_w > 3.0) or (lpos.x_rel >= self.config.CORRIDOR_LENGTH_EST_M):
                 self.coord_mgr.register_landmark(
                     "CORRIDOR_EXIT",
                     self.coord_mgr.global_pos.x,
@@ -1902,21 +1574,12 @@ class MissionFSM:
                 self.fc.stop()
                 self.state = MissionState.REACH_DELIVERY
             elif fwd_dist < self.config.OBS_SLOW_DIST_M:
-                self.fc.send_body_velocity(
-                    vx=self.config.SLOW_SPEED_MPS * 0.5,
-                    vy=vy_corr,
-                    vz=0.0,
-                    duration=0.3,
-                )
+                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS * 0.5, vy=vy_corr, vz=0.0, duration=0.3)
             else:
-                self.fc.send_body_velocity(
-                    vx=self.config.CORRIDOR_SPEED_MPS, vy=vy_corr, vz=0.0, duration=0.3
-                )
+                self.fc.send_body_velocity(vx=self.config.CORRIDOR_SPEED_MPS, vy=vy_corr, vz=0.0, duration=0.3)
 
         elif self.state == MissionState.REACH_DELIVERY:
-            log.info(
-                f"[DELIVERY] Ascending to {self.config.DELIVERY_SEARCH_ALT_M:.1f} m search altitude -> SCAN_TARGET_QR"
-            )
+            log.info(f"[DELIVERY] Ascending to {self.config.DELIVERY_SEARCH_ALT_M:.1f} m search altitude -> SCAN_TARGET_QR")
             self.fc.set_altitude(self.config.DELIVERY_SEARCH_ALT_M)
             self.state = MissionState.SCAN_TARGET_QR
             self.qr_confirm_cnt = 0
@@ -1927,10 +1590,7 @@ class MissionFSM:
                 if txt != self.target_id:
                     continue
                 qx, qy = int(np.mean(quad[:, 0])), int(np.mean(quad[:, 1]))
-                in_red = any(
-                    rx <= qx <= rx + rw and ry <= qy <= ry + rh
-                    for rx, ry, rw, rh in red_zones
-                )
+                in_red = any(rx <= qx <= rx + rw and ry <= qy <= ry + rh for rx, ry, rw, rh in red_zones)
                 if in_red:
                     log.warning(f"[SCAN_TARGET] QR '{txt}' is in a RED ZONE! Skipping.")
                     continue
@@ -1939,9 +1599,7 @@ class MissionFSM:
 
             if matched_qr is not None:
                 self.qr_confirm_cnt += 1
-                log.info(
-                    f"[SCAN_TARGET] Target matched ({self.qr_confirm_cnt}/{self.config.QR_CONFIRM_COUNT})"
-                )
+                log.info(f"[SCAN_TARGET] Target matched ({self.qr_confirm_cnt}/{self.config.QR_CONFIRM_COUNT})")
                 if self.qr_confirm_cnt >= self.config.QR_CONFIRM_COUNT:
                     self.coord_mgr.register_landmark(
                         "TARGET_QR",
@@ -1949,9 +1607,7 @@ class MissionFSM:
                         self.coord_mgr.global_pos.y,
                         self.coord_mgr.global_pos.z,
                     )
-                    log.info(
-                        "[SCAN_TARGET] Target Confirmed! Descending to 5m -> ALIGN_PAYLOAD"
-                    )
+                    log.info("[SCAN_TARGET] Target Confirmed! Descending to 5m -> ALIGN_PAYLOAD")
                     self.fc.set_altitude(self.config.PAYLOAD_DROP_ALT_M)
                     self.state = MissionState.ALIGN_PAYLOAD
             else:
@@ -1992,48 +1648,29 @@ class MissionFSM:
 
         elif self.state == MissionState.ASCEND_RETURN:
             self.fc.set_altitude(self.config.RETURN_CRUISE_ALT_M)
-            log.info(
-                f"[RETURN] Reached {self.config.RETURN_CRUISE_ALT_M}m. Rotating 180° -> ALIGN_RETURN_CORRIDOR"
-            )
+            log.info(f"[RETURN] Reached {self.config.RETURN_CRUISE_ALT_M}m. Rotating 180° -> ALIGN_RETURN_CORRIDOR")
             self.fc.set_yaw(180.0, relative=True)
             self.state = MissionState.ALIGN_RETURN_CORRIDOR
 
         elif self.state == MissionState.ALIGN_RETURN_CORRIDOR:
             self.fc.set_altitude(self.config.RETURN_CORRIDOR_ALT_M)
             if banner_box is not None or (d_left_w < 3.0 and d_right_w < 3.0):
-                log.info(
-                    "[RETURN_CORRIDOR] Entrance acquired -> FOLLOW_CORRIDOR_RETURN"
-                )
+                log.info("[RETURN_CORRIDOR] Entrance acquired -> FOLLOW_CORRIDOR_RETURN")
                 self.state = MissionState.FOLLOW_CORRIDOR_RETURN
             else:
-                self.fc.send_body_velocity(
-                    vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3
-                )
+                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3)
 
         elif self.state == MissionState.FOLLOW_CORRIDOR_RETURN:
-            lat_center_err = (
-                (d_right_w - d_left_w) / 2.0
-                if (d_left_w > 0 and d_right_w > 0)
-                else 0.0
-            )
+            lat_center_err = (d_right_w - d_left_w) / 2.0 if (d_left_w > 0 and d_right_w > 0) else 0.0
             vy_corr = max(-0.4, min(0.4, 0.45 * lat_center_err))
 
-            if (d_left_w > 4.0 and d_right_w > 4.0) or (
-                self.coord_mgr.global_pos.x <= 2.5
-            ):
+            if (d_left_w > 4.0 and d_right_w > 4.0) or (self.coord_mgr.global_pos.x <= 2.5):
                 log.info("[RETURN_CORRIDOR] Cleared return corridor -> APPROACH_HOME")
                 self.state = MissionState.APPROACH_HOME
             elif fwd_dist < self.config.OBS_SLOW_DIST_M:
-                self.fc.send_body_velocity(
-                    vx=self.config.SLOW_SPEED_MPS * 0.5,
-                    vy=vy_corr,
-                    vz=0.0,
-                    duration=0.3,
-                )
+                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS * 0.5, vy=vy_corr, vz=0.0, duration=0.3)
             else:
-                self.fc.send_body_velocity(
-                    vx=self.config.CORRIDOR_SPEED_MPS, vy=vy_corr, vz=0.0, duration=0.3
-                )
+                self.fc.send_body_velocity(vx=self.config.CORRIDOR_SPEED_MPS, vy=vy_corr, vz=0.0, duration=0.3)
 
         elif self.state == MissionState.APPROACH_HOME:
             gx, gy = self.coord_mgr.global_pos.x, self.coord_mgr.global_pos.y
@@ -2064,26 +1701,18 @@ class MissionFSM:
             self.state = MissionState.COMPLETE
 
         elif self.state == MissionState.AVOID_OBSTACLES:
-            threats = [
-                t for t in (obstacles + humans) if t.get("action") in ("STOP", "SLOW")
-            ]
+            threats = [t for t in (obstacles + humans) if t.get("action") in ("STOP", "SLOW")]
             if not threats:
-                log.info(
-                    f"[AVOID] Pathway clear -> Resuming {self.state_before_avoid.name}"
-                )
+                log.info(f"[AVOID] Pathway clear -> Resuming {self.state_before_avoid.name}")
                 self.state = self.state_before_avoid
             else:
                 closest = min(threats, key=lambda t: t["dist_m"])
                 cx = closest["cx"]
                 fw = bgr.shape[1]
                 if cx < fw // 2:
-                    self.fc.send_body_velocity(
-                        vx=0.0, vy=self.config.SLOW_SPEED_MPS, vz=0.0, duration=0.3
-                    )
+                    self.fc.send_body_velocity(vx=0.0, vy=self.config.SLOW_SPEED_MPS, vz=0.0, duration=0.3)
                 else:
-                    self.fc.send_body_velocity(
-                        vx=0.0, vy=-self.config.SLOW_SPEED_MPS, vz=0.0, duration=0.3
-                    )
+                    self.fc.send_body_velocity(vx=0.0, vy=-self.config.SLOW_SPEED_MPS, vz=0.0, duration=0.3)
                 if closest["dist_m"] < 0.6:
                     self.fc.send_body_velocity(vx=-0.5, vy=0.0, vz=0.0, duration=0.3)
 
@@ -2095,15 +1724,13 @@ class MissionFSM:
             "percept": percept,
         }
 
-    def run(self, headless: bool = False, max_duration_s: float | None = None) -> None:
+    def run(self, headless: bool = False, max_duration_s: Optional[float] = None) -> None:
         start_time = time.time()
         timeout = max_duration_s or self.config.MAX_MISSION_TIME_S
 
         while self.state != MissionState.COMPLETE:
             if time.time() - start_time > timeout:
-                log.warning(
-                    f"[MISSION TIMEOUT] Exceeded {timeout:.1f}s limit. Triggering RTL failsafe."
-                )
+                log.warning(f"[MISSION TIMEOUT] Exceeded {timeout:.1f}s limit. Triggering RTL failsafe.")
                 self.fc.return_to_launch()
                 break
 
@@ -2124,7 +1751,7 @@ class MissionFSM:
                     res["local_pos"],
                     self.config,
                 )
-                cv2.imshow("AeroTHON 2026 — Mission Control HUD (Bhakti Revankar)", hud)
+                cv2.imshow("AeroTHON 2026 — Mission Control HUD (R2D2)", hud)
                 k = cv2.waitKey(1) & 0xFF
                 if k == ord("q"):
                     log.warning("[OPERATOR ABORT] 'q' pressed -> Triggering RTL")
@@ -2146,7 +1773,7 @@ class MissionFSM:
 # ===========================================================================
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="SAEINDIA AeroTHON 2026 Track 1: SkyScan Autonomous Rapid Delivery (Author: Bhakti Revankar)",
+        description="SAEINDIA AeroTHON 2026 Track 1: SkyScan Autonomous Rapid Delivery (Author: R2D2)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -2159,7 +1786,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         default=False,
         help="SAFETY FLAG: Explicitly enable physical motor arming and flight control commands. "
-        "If omitted, flight commands will run on safe MockFlightController.",
+             "If omitted, flight commands will run on safe MockFlightController.",
     )
     parser.add_argument(
         "--sim",
@@ -2201,9 +1828,7 @@ def create_camera(cam_type: str, sim_mode: bool) -> CameraInterface:
         log.info("[CAMERA] Instantiating WebcamCamera.")
         return WebcamCamera()
     elif cam_type == "multi":
-        log.info(
-            "[CAMERA] Instantiating 3-Camera Suite (Forward OAK-D Lite + Downward Arducam HQ + Skydroid FPV)."
-        )
+        log.info("[CAMERA] Instantiating 3-Camera Suite (Forward OAK-D Lite + Downward Arducam HQ + Skydroid FPV).")
         return ThreeCameraManager()
     else:
         log.info("[CAMERA] Instantiating OAK-D Lite Stereo Depth Camera.")
@@ -2215,16 +1840,12 @@ def main() -> None:
 
     log.info("==================================================================")
     log.info("  SAEINDIA AeroTHON 2026 — Track 1 Autonomous Flight")
-    log.info("  Software Engineer / System Architect: Bhakti Revankar")
+    log.info("  Software Engineer / System Architect: R2D2")
     log.info("==================================================================")
     if not args.enable_real_flight:
-        log.info(
-            "[SAFETY STATUS] Real flight execution is DISABLED (Sim / Dry-run Mode)."
-        )
+        log.info("[SAFETY STATUS] Real flight execution is DISABLED (Sim / Dry-run Mode).")
     else:
-        log.warning(
-            "[SAFETY STATUS] REAL FLIGHT EXECUTION IS ENABLED! Hardware will be armed."
-        )
+        log.warning("[SAFETY STATUS] REAL FLIGHT EXECUTION IS ENABLED! Hardware will be armed.")
 
     camera = create_camera(args.camera, args.sim)
     fc = create_flight_controller(
