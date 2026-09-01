@@ -25,13 +25,17 @@ jobs:
           cache: pip
 
       - name: Install CI tools
-        run: python -m pip install --upgrade pip ruff pytest
+        run: |
+          python -m pip install --upgrade pip ruff pytest
+          if [ -f mission/requirements.txt ]; then pip install -r mission/requirements.txt; fi
 
       - name: Python syntax
         run: python -m compileall -q .
 
       - name: Ruff static checks
-        run: ruff check .
+        run: ruff check --select E,F,W --ignore E501 .
 
       - name: Pure logic tests
-        run: pytest -q --pass-with-no-tests tests
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/mission
+          python -m unittest discover -s mission/tests -v

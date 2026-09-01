@@ -1,0 +1,18 @@
+# AeroTHON 2026 — Track 1: Rotorcraft Systems Challenge (UAS)
+# Core Dependencies
+numpy>=1.22.0
+opencv-python>=4.6.0
+
+# Vision & AI (Degrades gracefully if absent)
+ultralytics>=8.0.0
+pyzbar>=0.1.9
+
+# Flight Control & MAVLink (Degrades gracefully to MockFlightController if absent)
+dronekit>=2.9.2
+pymavlink>=2.4.0
+
+# Camera Hardware (Optional: OAK-D Lite / DepthAI)
+# depthai>=2.20.0
+
+# Testing
+pytest>=7.0.0
