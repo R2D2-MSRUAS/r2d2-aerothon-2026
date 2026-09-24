@@ -1,0 +1,16 @@
+# Template only. Do not use until UART wiring and ArduPilot SERIALx parameters
+# have been verified in a props-off bench test.
+connection:
+  transport: serial
+  endpoint: /dev/ttyTHS1            # replace with the verified Orin UART device
+  source_system_id: 245
+  source_component_id: 190
+  expected_system_id: null
+  expected_component_id: null
+telemetry:
+  heartbeat_stale_s: 3.0
+  telemetry_stale_s: 5.0
+safety:
+  setpoint_expiry_s: 0.5
+  commands_enabled: false
+  automatic_actions_enabled: false
