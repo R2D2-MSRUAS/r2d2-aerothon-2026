@@ -4,6 +4,12 @@
 
 The command manager handles finite, acknowledged actions. It is separate from the setpoint manager, which handles continuous navigation targets.
 
+## Current Windows SITL implementation
+
+The `aerothon_sitl.yaml` profile maps `ARM`, `DISARM`, `TAKEOFF`, `LAND`, `RTL`, `SET_MODE`, and `YAW` through pymavlink after a configured FC heartbeat is accepted. `COMMAND_ACK` messages are correlated with the request; an accepted ACK is still only transport acceptance, and mission progression waits for the relevant `VehicleState` evidence. `WINCH` remains rejected because SITL cannot validate the real payload mechanism.
+
+This implementation is limited to `simulation_only: true` profiles and the `main.py mission --confirm-sitl --simulate-perception` entry point. It is not a hardware release.
+
 ## Supported action framework
 
 | Action | Intent | Likely MAVLink mechanism | Minimum preconditions | Completion evidence |

@@ -1,0 +1,34 @@
+# Windows Mission Planner SITL profile only. Do not copy this to a Pixhawk.
+# Mission Planner must mirror MAVLink to this listener with write access enabled.
+connection:
+  transport: udp
+  endpoint: udpin:0.0.0.0:14550
+  source_system_id: 245
+  source_component_id: 190
+  expected_system_id: 1
+  expected_component_id: 1
+telemetry:
+  heartbeat_stale_s: 3.0
+  telemetry_stale_s: 5.0
+safety:
+  setpoint_expiry_s: 0.5
+  setpoint_output_rate_hz: 5.0
+  max_speed_mps: 2.5
+  commands_enabled: true
+  automatic_actions_enabled: false
+mission:
+  enabled: true
+  simulation_only: true
+  max_mission_time_s: 900.0
+  takeoff_alt_m: 5.0
+  corridor_alt_m: 3.048
+  delivery_search_alt_m: 10.0
+  payload_drop_alt_m: 5.0
+  return_cruise_alt_m: 10.0
+  corridor_length_m: 15.0
+  cruise_speed_mps: 1.8
+  corridor_speed_mps: 1.5
+  slow_speed_mps: 0.8
+  yaw_rate_dps: 25.0
+  takeoff_timeout_s: 25.0
+  altitude_tolerance_m: 0.3

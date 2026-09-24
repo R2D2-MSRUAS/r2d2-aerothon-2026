@@ -1,0 +1,16 @@
+# Safe development profile: UDP receive endpoint only.
+# Start ArduPilot SITL/MAVProxy with an output directed to UDP port 14550.
+connection:
+  transport: udp
+  endpoint: udpin:0.0.0.0:14550
+  source_system_id: 245
+  source_component_id: 190
+  expected_system_id: null
+  expected_component_id: null
+telemetry:
+  heartbeat_stale_s: 3.0
+  telemetry_stale_s: 5.0
+safety:
+  setpoint_expiry_s: 0.5
+  commands_enabled: false
+  automatic_actions_enabled: false

@@ -1,0 +1,1 @@
+{"timestamp":"2026-08-30T16:42:07.824075+00:00","level":"INFO","logger":"core.mavlink_system","event":"CONNECTION_LOST reason=closed_by_client"}
