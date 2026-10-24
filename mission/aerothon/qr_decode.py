@@ -28,7 +28,12 @@ def _get_wechat():
         _wechat_tried = True
         try:
             files = ["detect.prototxt", "detect.caffemodel", "sr.prototxt", "sr.caffemodel"]
-            _wechat = cv2.wechat_qrcode_WeChatQRCode(*[os.path.join(_MODEL_DIR, f) for f in files])
+            # The binding name differs between OpenCV builds.
+            mod = getattr(cv2, "wechat_qrcode", None)
+            ctor = getattr(mod, "WeChatQRCode", None) or getattr(cv2, "wechat_qrcode_WeChatQRCode", None)
+            if ctor is None:
+                raise ImportError("WeChat QR module not in this OpenCV build")
+            _wechat = ctor(*[os.path.join(_MODEL_DIR, f) for f in files])
         except Exception:  # noqa: BLE001 - contrib build or models missing
             _wechat = None
     return _wechat
