@@ -14,8 +14,10 @@ from typing import Any
 import cv2
 import numpy as np
 
+from aerothon.banner import detect_corridor_banner
 from aerothon.config import DEFAULT_CONFIG, MissionConfig, MissionState
 from aerothon.coordinates import GlobalCoordinate, LocalSectionCoordinate
+from aerothon.qr_decode import decode_qr_codes
 
 log = logging.getLogger("AeroTHON2026.Vision")
 
@@ -365,27 +367,10 @@ def detect_green_banner(
     yolo_model: Any = None,
     yolo_results: Any = None,
 ) -> tuple[int, int, int, int] | None:
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, BANNER_HSV_LOWER, BANNER_HSV_UPPER)
-    kernel = np.ones((7, 7), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_box = None
-    best_area = 0
-
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area < BANNER_MIN_AREA:
-            continue
-        x, y, w, h = cv2.boundingRect(c)
-        ar = w / max(h, 1)
-        if ar < BANNER_MIN_AR:
-            continue
-        if area > best_area:
-            best_area = area
-            best_box = (x, y, w, h)
+    # Field spec banners are long strips (11.5x1.5 ft / 11.5x1 ft, #00B140);
+    # see aerothon/banner.py.
+    best_box = detect_corridor_banner(bgr, "green")
+    best_area = best_box[2] * best_box[3] if best_box is not None else 0
 
     if yolo_results is not None and yolo_model is not None:
         for r in yolo_results:
@@ -404,50 +389,8 @@ def detect_green_banner(
 
 
 def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
-    results: list[tuple[str, np.ndarray]] = []
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-    thresh = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4
-    )
-
-    stages = [(gray, 1.0), (upscaled, 2.5), (thresh, 1.0)]
-
-    try:
-        from pyzbar.pyzbar import decode as zbar_decode  # type: ignore
-
-        for img_data, sc in stages:
-            for obj in zbar_decode(img_data):
-                if obj.type != "QRCODE":
-                    continue
-                text = obj.data.decode("utf-8", errors="ignore").strip()
-                if not text:
-                    continue
-                quad = np.array(
-                    [[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int
-                )
-                results.append((text, quad))
-            if results:
-                return results
-    except Exception:  # noqa: BLE001, S110
-        pass
-
-    qr_detector = cv2.QRCodeDetector()
-    for img_data, sc in stages:
-        var = (
-            cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR)
-            if img_data.ndim == 2
-            else img_data
-        )
-        ok, decoded_info, points, _ = qr_detector.detectAndDecodeMulti(var)
-        if ok and points is not None and decoded_info:
-            for t, pts in zip(decoded_info, points):
-                if t:
-                    results.append((t, (pts / sc).astype(int)))
-            if results:
-                return results
-
-    return results
+    # Field QRs have no white border; see aerothon/qr_decode.py.
+    return decode_qr_codes(bgr)
 
 
 RED_HUE_RANGES = [(0, 10), (170, 180)]

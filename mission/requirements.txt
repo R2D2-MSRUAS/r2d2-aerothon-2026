@@ -1,7 +1,9 @@
 # AeroTHON 2026 — Track 1: Rotorcraft Systems Challenge (UAS)
 # Core Dependencies
 numpy>=1.22.0
-opencv-python>=4.6.0
+# contrib build needed for the WeChat QR decoder (field QRs have no white border).
+# Do not also install plain opencv-python: two cv2 builds conflict.
+opencv-contrib-python>=4.8.0
 
 # Vision & AI (Degrades gracefully if absent)
 ultralytics>=8.0.0
