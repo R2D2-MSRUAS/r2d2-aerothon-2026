@@ -65,6 +65,11 @@ class FieldSpec:
     RETURN_CORRIDOR_Y_M: float = 4.5  # centreline of the exit/return corridor
     DELIVERY_ZONE_GAP_M: float = 2.0  # corridor end -> delivery zone edge
 
+    # Compass heading of the x axis (pad -> corridors). None = take it from
+    # the way the drone faces at arming: PLACE THE DRONE ON THE PAD FACING
+    # THE CORRIDOR ENTRANCE. Set a number only if that is not possible.
+    COURSE_HEADING_DEG: float | None = None
+
     # ---------------------------------------------------- Flight choices ---
     # Fly mid-height inside the 2.44 m walls: clears the ground, stays well
     # below the wall tops and the arch banner.
