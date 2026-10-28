@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import unittest
 
+from aerothon.config import DEFAULT_CONFIG as CFG
 from aerothon.config import MissionState
 from aerothon.coordinates import (
     CoordinateManager,
@@ -63,7 +64,7 @@ class TestCoordinates(unittest.TestCase):
 
     def test_local_coordinates_corridor_forward(self) -> None:
         mgr = CoordinateManager()
-        mgr.update_from_fc(x=8.0, y=0.2, z=-3.048, yaw=0.0)
+        mgr.update_from_fc(x=8.0, y=0.2, z=-CFG.CORRIDOR_ALT_M, yaw=0.0)
         lpos = mgr.compute_local_coordinates(
             MissionState.FOLLOW_CORRIDOR,
             d_left_wall=1.55,
@@ -79,7 +80,8 @@ class TestCoordinates(unittest.TestCase):
 
     def test_local_coordinates_delivery_zone(self) -> None:
         mgr = CoordinateManager()
-        mgr.update_from_fc(x=20.0, y=1.5, z=-10.0, yaw=0.0)
+        exit_x = mgr.landmarks["CORRIDOR_EXIT"][0]
+        mgr.update_from_fc(x=exit_x + 2.0, y=1.5, z=-10.0, yaw=0.0)
         lpos = mgr.compute_local_coordinates(
             MissionState.SCAN_TARGET_QR,
             target_qr_box_dist=2.4,
@@ -92,7 +94,8 @@ class TestCoordinates(unittest.TestCase):
 
     def test_local_coordinates_corridor_return(self) -> None:
         mgr = CoordinateManager()
-        mgr.update_from_fc(x=10.0, y=0.0, z=-3.048, yaw=180.0)
+        exit_x = mgr.landmarks["CORRIDOR_EXIT"][0]
+        mgr.update_from_fc(x=exit_x - 8.0, y=0.0, z=-CFG.CORRIDOR_ALT_M, yaw=180.0)
         lpos = mgr.compute_local_coordinates(
             MissionState.FOLLOW_CORRIDOR_RETURN,
             d_left_wall=1.75,
@@ -102,7 +105,7 @@ class TestCoordinates(unittest.TestCase):
         self.assertEqual(lpos.section_name, "CORRIDOR_RETURN")
         self.assertAlmostEqual(lpos.x_rel, 8.0, places=2)
         self.assertAlmostEqual(lpos.y_rel, 0.0, places=2)
-        self.assertAlmostEqual(lpos.distance_to_goal, 10.0, places=2)
+        self.assertAlmostEqual(lpos.distance_to_goal, exit_x - 8.0, places=2)
 
     def test_local_coordinates_home_approach(self) -> None:
         mgr = CoordinateManager()

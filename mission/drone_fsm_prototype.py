@@ -35,6 +35,12 @@ from typing import Any
 import cv2
 import numpy as np
 
+from aerothon.banner import detect_corridor_banner
+from aerothon.depth_geometry import analyze_depth, pixel_to_ground
+from aerothon.qr_candidates import find_qr_candidates
+from aerothon.qr_decode import decode_qr_codes
+from aerothon.field_spec import FIELD
+
 # ---------------------------------------------------------------------------
 # Logging Setup
 # ---------------------------------------------------------------------------
@@ -76,11 +82,11 @@ class MissionConfig:
     """Mission Parameters as mandated by SAEINDIA AeroTHON 2026 Rulebook."""
     # Altitudes (meters above ground)
     TAKEOFF_ALT_M           : float = 5.0    # 5.0m takeoff & initial QR scan
-    CORRIDOR_ALT_M          : float = 3.048  # 10 ft (~3.05m) corridor navigation altitude
+    CORRIDOR_ALT_M          : float = FIELD.CORRIDOR_FLIGHT_ALT_M  # 1.5m: inside the 8 ft (2.44m) corridor walls
     DELIVERY_SEARCH_ALT_M   : float = 10.0   # 10.0m delivery zone QR search altitude
     PAYLOAD_DROP_ALT_M      : float = 5.0    # 5.0m precision winch drop altitude
     RETURN_CRUISE_ALT_M     : float = 10.0   # 10.0m return climb altitude
-    RETURN_CORRIDOR_ALT_M   : float = 3.048  # 10 ft return corridor traversal altitude
+    RETURN_CORRIDOR_ALT_M   : float = FIELD.CORRIDOR_FLIGHT_ALT_M  # 1.5m return corridor traversal altitude
 
     # Velocities (m/s)
     CRUISE_SPEED_MPS        : float = 1.8    # Standard cruise speed
@@ -93,8 +99,19 @@ class MissionConfig:
     OBS_SAFE_DIST_M         : float = 2.0    # > 2.0m: Full cruise speed
     OBS_SLOW_DIST_M         : float = 1.2    # 1.2m - 2.0m: Half speed & lateral steer
     OBS_CRITICAL_STOP_M     : float = 0.8    # < 0.8m: Immediate emergency stop & lateral evade
-    CORRIDOR_WIDTH_M        : float = 3.5    # Specified arena corridor width
-    CORRIDOR_LENGTH_EST_M   : float = 15.0   # Nominal corridor length
+    CORRIDOR_WIDTH_M        : float = FIELD.CORRIDOR_WIDTH_M  # 11.5 ft (3.51m) between walls
+    CORRIDOR_LENGTH_EST_M   : float = FIELD.CORRIDOR_LENGTH_M + 1.0  # 22 ft (6.71m) walls + 1m margin
+
+    # Camera geometry (forward OAK-D Lite)
+    CAMERA_PITCH_DEG        : float = 45.0   # OAK-D mount tilt below horizontal
+    CAMERA_HFOV_DEG         : float = 73.0   # OAK-D Lite stereo horizontal FOV
+
+    # Landing on the 4x4 ft (1.22m) raised podium
+    HOME_TOLERANCE_M        : float = 0.25   # must be well inside the 0.61m pad half-width
+    HOME_SETTLE_STEPS       : int = 3        # consecutive in-tolerance steps before LAND
+    # The 45 deg camera only sees wall points from ~2.4m ahead (at 1.5m alt),
+    # so walls 'disappear' before the corridor actually ends.
+    CORRIDOR_BLIND_M        : float = 2.8    # keep going this far after walls vanish
 
     # Tolerances
     ALTITUDE_TOLERANCE_M    : float = 0.30   # Altitude convergence threshold
@@ -180,10 +197,10 @@ class CoordinateManager:
 
         self.landmarks: dict[str, tuple[float, float, float]] = {
             "HOME": (0.0, 0.0, 0.0),
-            "START_QR": (1.0, 0.0, -self.config.TAKEOFF_ALT_M),
-            "CORRIDOR_ENTRY": (3.0, 0.0, -self.config.CORRIDOR_ALT_M),
-            "CORRIDOR_EXIT": (3.0 + self.config.CORRIDOR_LENGTH_EST_M, 0.0, -self.config.CORRIDOR_ALT_M),
-            "DELIVERY_CENTER": (3.0 + self.config.CORRIDOR_LENGTH_EST_M + 5.0, 0.0, -self.config.DELIVERY_SEARCH_ALT_M),
+            "START_QR": (FIELD.START_QR_X_M, 0.0, -self.config.TAKEOFF_ALT_M),
+            "CORRIDOR_ENTRY": (FIELD.CORRIDOR_ENTRY_X_M, FIELD.FORWARD_CORRIDOR_Y_M, -self.config.CORRIDOR_ALT_M),
+            "CORRIDOR_EXIT": (FIELD.corridor_exit_x, FIELD.FORWARD_CORRIDOR_Y_M, -self.config.CORRIDOR_ALT_M),
+            "DELIVERY_CENTER": (FIELD.corridor_exit_x + FIELD.DELIVERY_ZONE_GAP_M + 10.0, 0.0, -self.config.DELIVERY_SEARCH_ALT_M),
             "TARGET_QR": (0.0, 0.0, 0.0),
         }
 
@@ -626,27 +643,10 @@ def detect_green_banner(
     yolo_model: Any = None,
     yolo_results: Any = None,
 ) -> tuple[int, int, int, int] | None:
-    hsv = cv2.cvtColor(bgr, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, BANNER_HSV_LOWER, BANNER_HSV_UPPER)
-    kernel = np.ones((7, 7), np.uint8)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
-
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    best_box = None
-    best_area = 0
-
-    for c in contours:
-        area = cv2.contourArea(c)
-        if area < BANNER_MIN_AREA:
-            continue
-        x, y, w, h = cv2.boundingRect(c)
-        ar = w / max(h, 1)
-        if ar < BANNER_MIN_AR:
-            continue
-        if area > best_area:
-            best_area = area
-            best_box = (x, y, w, h)
+    # Field spec banners are long strips (11.5x1.5 ft / 11.5x1 ft, #00B140);
+    # see aerothon/banner.py for why the old HSV + axis-aligned check failed.
+    best_box = detect_corridor_banner(bgr, "green")
+    best_area = best_box[2] * best_box[3] if best_box is not None else 0
 
     if yolo_results is not None and yolo_model is not None:
         for r in yolo_results:
@@ -665,41 +665,8 @@ def detect_green_banner(
 
 
 def detect_qr_codes(bgr: np.ndarray) -> list[tuple[str, np.ndarray]]:
-    results: list[tuple[str, np.ndarray]] = []
-    gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-    upscaled = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
-    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 4)
-
-    stages = [(gray, 1.0), (upscaled, 2.5), (thresh, 1.0)]
-
-    try:
-        from pyzbar.pyzbar import decode as zbar_decode  # type: ignore
-        for img_data, sc in stages:
-            for obj in zbar_decode(img_data):
-                if obj.type != "QRCODE":
-                    continue
-                text = obj.data.decode("utf-8", errors="ignore").strip()
-                if not text:
-                    continue
-                quad = np.array([[int(p.x / sc), int(p.y / sc)] for p in obj.polygon], dtype=int)
-                results.append((text, quad))
-            if results:
-                return results
-    except Exception:
-        pass
-
-    qr_detector = cv2.QRCodeDetector()
-    for img_data, sc in stages:
-        var = cv2.cvtColor(img_data, cv2.COLOR_GRAY2BGR) if img_data.ndim == 2 else img_data
-        ok, decoded_info, points, _ = qr_detector.detectAndDecodeMulti(var)
-        if ok and points is not None and decoded_info:
-            for t, pts in zip(decoded_info, points):
-                if t:
-                    results.append((t, (pts / sc).astype(int)))
-            if results:
-                return results
-
-    return results
+    # Field QRs have no white border; see aerothon/qr_decode.py.
+    return decode_qr_codes(bgr)
 
 
 RED_HUE_RANGES = [(0, 10), (170, 180)]
@@ -819,7 +786,9 @@ class PerceptionPipeline:
             log.warning(f"[AI PERCEPTION] YOLOv8 not available ({err}). Falling back to Classical CV.")
             self._yolo_model = None
 
-    def perceive(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
+    def perceive(
+        self, bgr: np.ndarray, depth_mm: np.ndarray | None, alt_m: float | None = None
+    ) -> dict[str, Any]:
         self._lazy_load_yolo()
 
         _yolo_res = None
@@ -857,6 +826,7 @@ class PerceptionPipeline:
         red_zones = find_red_zones(bgr)
         qr_codes = detect_qr_codes(bgr)
         banner_box = detect_green_banner(bgr, self._yolo_model, _yolo_res)
+        exit_banner_box = detect_corridor_banner(bgr, "blue")
 
         h_f, w_f = bgr.shape[:2]
         col_w = w_f // 3
@@ -874,6 +844,21 @@ class PerceptionPipeline:
 
         d_left_wall = _get_col_depth(0, edge_w)
         d_right_wall = _get_col_depth(w_f - edge_w, edge_w)
+
+        # With altitude known, use ground-aware geometry (camera is pitched
+        # down, so raw edge-column depth is mostly floor, not wall).
+        if alt_m is not None and depth_mm is not None:
+            geo = analyze_depth(
+                depth_mm,
+                alt_m,
+                pitch_deg=self.config.CAMERA_PITCH_DEG,
+                hfov_deg=self.config.CAMERA_HFOV_DEG,
+                stop_m=self.config.OBS_SLOW_DIST_M,
+                slow_m=self.config.OBS_SAFE_DIST_M,
+            )
+            d_left_wall, d_right_wall = geo["d_left_wall"], geo["d_right_wall"]
+            d_centre = geo["fwd_dist_m"]
+            obstacles = obstacles + geo["obstacles"]
 
         centre_stop = any(
             o["action"] == "STOP" and abs(o["cx"] - w_f // 2) < col_w // 2 for o in obstacles
@@ -899,6 +884,7 @@ class PerceptionPipeline:
             "red_zones": red_zones,
             "qr_codes": qr_codes,
             "banner_box": banner_box,
+            "exit_banner_box": exit_banner_box,
             "steering": steering,
             "fwd_dist_m": d_centre,
             "d_left": d_left,
@@ -1138,9 +1124,21 @@ class MAVLinkFlightController(FlightControllerInterface):
         self.config = config
         self.connection_string = connection_string
         self._vehicle: Any = None
+        self._yaw_hold_deg: float | None = None  # heading every setpoint commands (course frame)
+        # Course frame: x = from the pad towards the corridors, y = right.
+        # Set at arming from the way the drone faces on the pad, unless
+        # FIELD.COURSE_HEADING_DEG fixes it. Everything the FSM sees and
+        # commands is in this frame, so the field need not face north.
+        self._course_deg = 0.0
         self._connect()
 
     def _connect(self) -> None:
+        import collections
+        import collections.abc
+
+        # dronekit 2.9 still imports collections.MutableMapping (removed in Python 3.10)
+        if not hasattr(collections, "MutableMapping"):
+            collections.MutableMapping = collections.abc.MutableMapping  # type: ignore[attr-defined]
         from dronekit import connect as dk_connect  # type: ignore
         log.info(f"[FC] Connecting to Flight Controller at '{self.connection_string}'...")
         start_time = time.time()
@@ -1153,63 +1151,90 @@ class MAVLinkFlightController(FlightControllerInterface):
         log.info(f"[FC] Connected in {elapsed:.1f}s. Firmware: {self._vehicle.version}")
 
     def get_position_ned(self) -> tuple[float, float, float, float]:
+        """(x, y, z, yaw) in the course frame (see _course_deg), z down."""
         if self._vehicle is None:
             return (0.0, 0.0, 0.0, 0.0)
         loc = self._vehicle.location.local_frame
         alt = float(self._vehicle.location.global_relative_frame.alt or 0.0)
-        yaw = float(self._vehicle.attitude.yaw * 180.0 / math.pi) if self._vehicle.attitude else 0.0
-        x = float(loc.north) if loc and loc.north is not None else 0.0
-        y = float(loc.east) if loc and loc.east is not None else 0.0
-        z = -alt
-        return (x, y, z, yaw)
+        n = float(loc.north) if loc and loc.north is not None else 0.0
+        e = float(loc.east) if loc and loc.east is not None else 0.0
+        c = math.radians(self._course_deg)
+        x = n * math.cos(c) + e * math.sin(c)
+        y = -n * math.sin(c) + e * math.cos(c)
+        return (x, y, -alt, self._heading_now())
 
-    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
-        if self._vehicle is None:
-            return
+    # ArduCopter GUIDED: a velocity setpoint that leaves yaw unspecified
+    # cancels any CONDITION_YAW and (with the default WP_YAW_BEHAVIOR) turns
+    # the nose toward the direction of travel. With body-frame velocities that
+    # have a sideways part, the frame then rotates with the nose and the drone
+    # spins in place. So every setpoint below carries an explicit heading.
+    _MASK_VEL_YAW = 0b0000100111000111  # use vx,vy,vz + yaw; ignore pos, accel, yaw rate
+    _MASK_POS_YAW = 0b0000100111111000  # use x,y,z + yaw; ignore vel, accel, yaw rate
+
+    def _raw_heading(self) -> float:
+        """Compass heading, degrees 0-360."""
+        att = self._vehicle.attitude if self._vehicle is not None else None
+        if att is None or att.yaw is None:
+            return 0.0
+        return math.degrees(att.yaw) % 360.0
+
+    def _heading_now(self) -> float:
+        """Heading in the course frame."""
+        return (self._raw_heading() - self._course_deg) % 360.0
+
+    def _yaw_target(self) -> float:
+        if self._yaw_hold_deg is None:
+            self._yaw_hold_deg = self._heading_now()
+        return self._yaw_hold_deg
+
+    def _send_local(self, vn: float, ve: float, vd: float, duration: float) -> None:
         from pymavlink import mavutil  # type: ignore
 
-        vx = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vx))
-        vy = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vy))
-        vz = max(-self.config.MAX_SPEED_MPS, min(self.config.MAX_SPEED_MPS, vz))
-
+        lim = self.config.MAX_SPEED_MPS
+        vx, vy, vd = (max(-lim, min(lim, v)) for v in (vn, ve, vd))
+        c = math.radians(self._course_deg)  # course frame -> NED
+        vn = vx * math.cos(c) - vy * math.sin(c)
+        ve = vx * math.sin(c) + vy * math.cos(c)
         msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
             0, 0, 0,
-            mavutil.mavlink.MAV_FRAME_BODY_NED,
-            0b0000111111000111,
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            self._MASK_VEL_YAW,
             0, 0, 0,
-            vx, vy, vz,
+            vn, ve, vd,
             0, 0, 0,
-            0, 0,
+            math.radians(self._yaw_target() + self._course_deg), 0,
         )
         end_time = time.time() + duration
-        while time.time() < end_time:
+        while True:
             self._vehicle.send_mavlink(msg)
+            if time.time() >= end_time:
+                break
             time.sleep(0.1)
+
+    def send_body_velocity(self, vx: float, vy: float, vz: float, duration: float = 0.2) -> None:
+        """Velocity relative to the commanded heading (camera forward / right)."""
+        if self._vehicle is None:
+            return
+        h = math.radians(self._yaw_target())
+        vn = vx * math.cos(h) - vy * math.sin(h)
+        ve = vx * math.sin(h) + vy * math.cos(h)
+        self._send_local(vn, ve, vz, duration)
 
     def send_local_velocity(self, vx_n: float, vy_e: float, vz_d: float, duration: float = 0.2) -> None:
         if self._vehicle is None:
             return
-        from pymavlink import mavutil  # type: ignore
-
-        msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
-            0, 0, 0,
-            mavutil.mavlink.MAV_FRAME_LOCAL_NED,
-            0b0000111111000111,
-            0, 0, 0,
-            vx_n, vy_e, vz_d,
-            0, 0, 0,
-            0, 0,
-        )
-        end_time = time.time() + duration
-        while time.time() < end_time:
-            self._vehicle.send_mavlink(msg)
-            time.sleep(0.1)
+        self._send_local(vx_n, vy_e, vz_d, duration)
 
     def arm_and_takeoff(self, target_alt: float) -> bool:
         if self._vehicle is None:
             return False
         from dronekit import VehicleMode  # type: ignore
 
+        self._course_deg = (
+            FIELD.COURSE_HEADING_DEG if FIELD.COURSE_HEADING_DEG is not None else self._raw_heading()
+        ) % 360.0
+        self._yaw_hold_deg = 0.0
+        log.info(f"[FC] Course heading {self._course_deg:.0f} deg (x axis = pad -> corridors)")
         log.info(f"[FC] Setting mode GUIDED and arming (Timeout: {self.config.ARM_TIMEOUT_S}s)...")
         self._vehicle.mode = VehicleMode("GUIDED")
         self._vehicle.armed = True
@@ -1234,44 +1259,55 @@ class MAVLinkFlightController(FlightControllerInterface):
                 break
             time.sleep(0.2)
 
-        log.info(f"[FC] Takeoff complete at {target_alt:.1f} m.")
+        log.info(f"[FC] Takeoff complete at {target_alt:.1f} m, facing the corridors.")
         return True
 
     def set_altitude(self, target_alt: float) -> bool:
         if self._vehicle is None:
             return False
-        from dronekit import LocationGlobalRelative  # type: ignore
+        from pymavlink import mavutil  # type: ignore
 
         log.info(f"[FC] Changing altitude to {target_alt:.1f} m...")
-        cur = self._vehicle.location.global_relative_frame
-        target = LocationGlobalRelative(cur.lat, cur.lon, target_alt)
-        self._vehicle.simple_goto(target)
-
+        loc = self._vehicle.location.local_frame
+        n = float(loc.north or 0.0) if loc else 0.0
+        e = float(loc.east or 0.0) if loc else 0.0
+        # z in LOCAL_NED is relative to the EKF origin (home), down positive
+        msg = self._vehicle.message_factory.set_position_target_local_ned_encode(
+            0, 0, 0,
+            mavutil.mavlink.MAV_FRAME_LOCAL_NED,
+            self._MASK_POS_YAW,
+            n, e, -target_alt,
+            0, 0, 0,
+            0, 0, 0,
+            math.radians(self._yaw_target() + self._course_deg), 0,
+        )
         alt_start = time.time()
         while abs(float(self._vehicle.location.global_relative_frame.alt or 0.0) - target_alt) > self.config.ALTITUDE_TOLERANCE_M:
             if time.time() - alt_start > self.config.ALTITUDE_CHANGE_TIMEOUT_S:
                 log.warning("[FC TIMEOUT] Altitude transition timed out; proceeding with current altitude.")
                 return False
+            self._vehicle.send_mavlink(msg)
             time.sleep(0.2)
         return True
 
     def set_yaw(self, heading_deg: float, relative: bool = True) -> None:
+        """Turn on the spot to a heading and keep holding it afterwards.
+
+        Relative turns add to the commanded heading (not the measured one), so
+        a 15-deg-per-step scan really completes 360 deg in 24 steps.
+        """
         if self._vehicle is None:
             return
-        from pymavlink import mavutil  # type: ignore
-
-        msg = self._vehicle.message_factory.command_long_encode(
-            0, 0,
-            mavutil.mavlink.MAV_CMD_CONDITION_YAW,
-            0,
-            heading_deg,
-            self.config.YAW_RATE_DPS,
-            1 if relative else 0,
-            1 if relative else 0,
-            0, 0, 0,
-        )
-        self._vehicle.send_mavlink(msg)
-        time.sleep(1.0)
+        base = self._yaw_target() if relative else 0.0
+        self._yaw_hold_deg = (base + heading_deg) % 360.0
+        turn = abs(((self._heading_now() - self._yaw_hold_deg) + 180.0) % 360.0 - 180.0)
+        deadline = time.time() + turn / max(self.config.YAW_RATE_DPS, 1.0) + 2.0
+        while time.time() < deadline:
+            self._send_local(0.0, 0.0, 0.0, 0.0)  # hold position, turn to heading
+            err = abs(((self._heading_now() - self._yaw_hold_deg) + 180.0) % 360.0 - 180.0)
+            if err <= self.config.HEADING_TOLERANCE_DEG:
+                break
+            time.sleep(0.1)
 
     def set_winch(self, pwm_us: int) -> None:
         if self._vehicle is None:
@@ -1307,12 +1343,16 @@ class MAVLinkFlightController(FlightControllerInterface):
         log.info(f"[FC] Switching to LAND mode (Timeout: {self.config.LANDING_TIMEOUT_S}s)...")
         self._vehicle.mode = VehicleMode("LAND")
         land_start = time.time()
-        while float(self._vehicle.location.global_relative_frame.alt or 0.0) > 0.15:
+        # Touchdown = ArduPilot's own land detector disarming the motors.
+        # (The old "relative alt < 0.15m" check could fire before contact,
+        # or never fire if the baro reads slightly high on the 6 in podium.)
+        while self._vehicle.armed:
             if time.time() - land_start > self.config.LANDING_TIMEOUT_S:
-                log.warning("[FC TIMEOUT] Landing descent timed out.")
+                alt = float(self._vehicle.location.global_relative_frame.alt or 0.0)
+                log.warning(f"[FC TIMEOUT] Still armed after {self.config.LANDING_TIMEOUT_S:.0f}s (alt {alt:.2f}m).")
                 return False
             time.sleep(0.3)
-        log.info("[FC] Landed.")
+        log.info("[FC] Landed and disarmed.")
         return True
 
     def close(self) -> None:
@@ -1418,6 +1458,28 @@ class FlightDataRecorder:
 # ===========================================================================
 # 12. FULL MISSION FSM ENGINE (FORWARD & BACKWARD PASS)
 # ===========================================================================
+def delivery_search_waypoints(config: MissionConfig = CFG) -> list[tuple[float, float, float]]:
+    """Snake (lawnmower) sweep over the 40 x 30 m delivery zone: (x, y, heading).
+
+    The forward camera is pitched 45 deg, so from the search altitude it looks
+    ~alt metres ahead; lanes start that far before the zone edge and stop
+    that far before its end. Lanes 10 m apart cover the 30 m width.
+    """
+    alt = config.DELIVERY_SEARCH_ALT_M
+    x0 = FIELD.corridor_exit_x + FIELD.DELIVERY_ZONE_GAP_M
+    x_near = x0 - 0.6 * alt
+    x_far = x0 + FIELD.DELIVERY_ZONE_LENGTH_M - 0.6 * alt
+    half_w = FIELD.DELIVERY_ZONE_WIDTH_M / 2
+    lanes = (0.0, half_w - 5.0, -(half_w - 5.0))  # centre lane first
+    wps: list[tuple[float, float, float]] = []
+    for i, y in enumerate(lanes):
+        if i % 2 == 0:
+            wps += [(x_near, y, 0.0), (x_far, y, 0.0)]
+        else:
+            wps += [(x_far + alt, y, 180.0), (x0 + 0.6 * alt, y, 180.0)]
+    return wps
+
+
 class MissionFSM:
     def __init__(
         self,
@@ -1440,9 +1502,127 @@ class MissionFSM:
         self.qr_fail_cnt = 0
         self.qr_confirm_cnt = 0
         self.banner_search_cnt = 0
+        self.home_settle_cnt = 0
+        self.target_xy: tuple[float, float] | None = None
+        self.align_settle_cnt = 0
+        self.walls_lost_at: tuple[float, float] | None = None
+        self.search_wps: list[tuple[float, float, float]] = []
+        self.search_idx = 0
+        self.qr_cands: list[dict] = []  # QR-like patches seen in the delivery zone (world x, y)
+        self.inspecting: dict | None = None
+        self.return_mouth_reached = False
         self.state_before_avoid = MissionState.FOLLOW_CORRIDOR
         self.mission_start_time = time.time()
         self.step_count = 0
+
+    def _fly_towards(self, tx: float, ty: float, speed: float) -> float:
+        """One velocity step towards local point (tx, ty). Returns distance."""
+        gx, gy = self.coord_mgr.global_pos.x, self.coord_mgr.global_pos.y
+        dx, dy = tx - gx, ty - gy
+        dist = math.hypot(dx, dy)
+        if dist > 0.05:
+            spd = min(speed, max(0.15, dist * 0.6))
+            self.fc.send_local_velocity(dx / dist * spd, dy / dist * spd, 0.0, duration=0.3)
+        return dist
+
+    def _to_world(self, px: float, py: float, w: int, h: int, alt: float, yaw: float):
+        off = pixel_to_ground(px, py, w, h, alt, self.config.CAMERA_PITCH_DEG, self.config.CAMERA_HFOV_DEG)
+        if off is None:
+            return None
+        yr = math.radians(yaw)
+        gx, gy = self.coord_mgr.global_pos.x, self.coord_mgr.global_pos.y
+        return (gx + off[0] * math.cos(yr) - off[1] * math.sin(yr), gy + off[0] * math.sin(yr) + off[1] * math.cos(yr))
+
+    def _search_for_target(self, bgr, qr_codes, gx: float, gy: float, alt: float, yaw: float) -> None:
+        """Delivery-zone search: spot QR-like patches from afar, fly to each
+        one and read it; sweep lanes only when nothing is left to inspect.
+
+        A fixed heading is always commanded. (The old "vx=0.3, vy=0.2 in body
+        frame" drift made a real ArduCopter turn its nose toward the velocity,
+        rotating the body frame, so the drone circled instead of searching.)
+        """
+        h_img, w_img = bgr.shape[:2]
+        x0 = FIELD.corridor_exit_x + FIELD.DELIVERY_ZONE_GAP_M
+        x1 = x0 + FIELD.DELIVERY_ZONE_LENGTH_M
+        half_w = FIELD.DELIVERY_ZONE_WIDTH_M / 2
+
+        def _nearest(x, y, r=1.5):
+            best = None
+            for c in self.qr_cands:
+                d = math.hypot(c["x"] - x, c["y"] - y)
+                if d < r and (best is None or d < best[0]):
+                    best = (d, c)
+            return best[1] if best else None
+
+        # 1. remember new QR-like patches inside the delivery zone
+        for cx, cy, _a in find_qr_candidates(bgr):
+            p = self._to_world(cx, cy, w_img, h_img, alt, yaw)
+            if p is None or not (x0 - 1 <= p[0] <= x1 + 1 and abs(p[1]) <= half_w + 1):
+                continue
+            c = _nearest(*p)
+            if c is None:
+                self.qr_cands.append({"x": p[0], "y": p[1], "done": False, "n": 1})
+                log.info(f"[SCAN_TARGET] QR-like patch at ({p[0]:.1f}, {p[1]:.1f}) -> queued for inspection")
+            elif not c["done"]:  # refine the estimate while it is far away
+                c["x"] = (c["x"] * c["n"] + p[0]) / (c["n"] + 1)
+                c["y"] = (c["y"] * c["n"] + p[1]) / (c["n"] + 1)
+                c["n"] = min(c["n"] + 1, 5)
+
+        # 2. any QR we can read that is not ours: mark that patch done
+        for txt, quad in qr_codes:
+            if txt == self.target_id:
+                continue
+            p = self._to_world(float(np.mean(quad[:, 0])), float(np.mean(quad[:, 1])), w_img, h_img, alt, yaw)
+            c = _nearest(*p, r=2.0) if p else None
+            if c is not None and not c["done"]:
+                c["done"] = True
+                log.info(f"[SCAN_TARGET] Patch at ({c['x']:.1f}, {c['y']:.1f}) is '{txt}', not ours")
+                if self.inspecting is c:
+                    self.inspecting = None
+
+        # 3. inspect the nearest unread patch: stand 5 m short of it, facing +x
+        #    (at the 10 m search altitude the 45 deg camera reads a 1 m QR best
+        #    when it is 4-9 m ahead and nearly straight on)
+        if self.inspecting is None:
+            todo = [c for c in self.qr_cands if not c["done"]]
+            if todo:
+                self.inspecting = min(todo, key=lambda c: math.hypot(c["x"] - 5.0 - gx, c["y"] - gy))
+                self.inspecting["dwell"] = 0
+        if self.inspecting is not None:
+            c = self.inspecting
+            if abs(((yaw - 0.0) + 180.0) % 360.0 - 180.0) > 10.0:
+                self.fc.set_yaw(0.0, relative=False)
+            if self._fly_towards(c["x"] - 5.0, c["y"], self.config.CRUISE_SPEED_MPS) < 0.5:
+                self.fc.stop()
+                c["dwell"] += 1
+                if c["dwell"] >= 4:  # could not read it from the sweet spot
+                    log.info(f"[SCAN_TARGET] Patch at ({c['x']:.1f}, {c['y']:.1f}) unreadable/not ours -> next")
+                    c["done"] = True
+                    self.inspecting = None
+            return
+
+        # 4. nothing to inspect: sweep the zone lane by lane
+        if not self.search_wps:
+            self.search_wps = delivery_search_waypoints(self.config)
+        wx, wy, wyaw = self.search_wps[self.search_idx]
+        if abs(((yaw - wyaw) + 180.0) % 360.0 - 180.0) > 10.0:
+            self.fc.set_yaw(wyaw, relative=False)
+        if self._fly_towards(wx, wy, self.config.CRUISE_SPEED_MPS) < 0.6:
+            self.search_idx = (self.search_idx + 1) % len(self.search_wps)
+            if self.search_idx == 0:
+                log.warning("[SCAN_TARGET] Full sweep done without a match -> re-checking all patches")
+                for c in self.qr_cands:
+                    c["done"] = False
+
+    def _walls_lost_for(self, d_left_w: float, d_right_w: float) -> float:
+        """Distance flown since both corridor walls were last seen (0 if seen)."""
+        gx, gy = self.coord_mgr.global_pos.x, self.coord_mgr.global_pos.y
+        if d_left_w > 3.0 and d_right_w > 3.0:
+            if self.walls_lost_at is None:
+                self.walls_lost_at = (gx, gy)
+            return math.hypot(gx - self.walls_lost_at[0], gy - self.walls_lost_at[1])
+        self.walls_lost_at = None
+        return 0.0
 
     def step(self, bgr: np.ndarray, depth_mm: np.ndarray | None) -> dict[str, Any]:
         self.step_count += 1
@@ -1451,7 +1631,7 @@ class MissionFSM:
         self.coord_mgr.update_from_fc(gx, gy, gz, yaw)
         self.coord_mgr.record_path_point(self.state, gx, gy, gz, yaw)
 
-        percept = self.perception.perceive(bgr, depth_mm)
+        percept = self.perception.perceive(bgr, depth_mm, alt_m=-gz)
         obstacles = percept["obstacles"]
         humans = percept["humans"]
         red_zones = percept["red_zones"]
@@ -1505,6 +1685,7 @@ class MissionFSM:
                 )
                 log.info(f"[START_QR] Target Decoded: '{self.target_id}' -> FIND_GREEN_BANNER")
                 self.state = MissionState.FIND_GREEN_BANNER
+                self.fc.set_yaw(0.0, relative=False)  # corridors lie along +x from take-off
                 self.qr_fail_cnt = 0
             else:
                 self.qr_fail_cnt += 1
@@ -1516,6 +1697,7 @@ class MissionFSM:
                     log.warning("[START_QR] Search timeout. Defaulting target to 'TARGET_A'")
                     self.target_id = "TARGET_A"
                     self.state = MissionState.FIND_GREEN_BANNER
+                    self.fc.set_yaw(0.0, relative=False)
 
         elif self.state == MissionState.FIND_GREEN_BANNER:
             if banner_box is not None:
@@ -1541,17 +1723,28 @@ class MissionFSM:
                         self.coord_mgr.global_pos.y,
                         self.coord_mgr.global_pos.z,
                     )
-                    log.info("[BANNER] Corridor entry reached. Descending to 10 ft (3m) -> ENTER_CORRIDOR")
+                    log.info(f"[BANNER] Corridor entry reached. Descending to {self.config.CORRIDOR_ALT_M:.1f}m -> ENTER_CORRIDOR")
                     self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
                     self.state = MissionState.ENTER_CORRIDOR
                 self.banner_search_cnt = 0
             else:
                 self.banner_search_cnt += 1
-                self.fc.set_yaw(15.0, relative=True)
-                if self.banner_search_cnt > 24:
-                    log.warning("[BANNER] Full 360° sweep completed. Forcing corridor entry.")
-                    self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
-                    self.state = MissionState.ENTER_CORRIDOR
+                if self.banner_search_cnt <= 24:
+                    self.fc.set_yaw(15.0, relative=True)
+                else:
+                    # Override: banner never seen in a full sweep. Fly to the
+                    # corridor mouth from the measured field layout instead
+                    # of blindly creeping forward from wherever we are.
+                    if self.banner_search_cnt == 25:
+                        log.warning("[BANNER] Not found after 360 sweep -> flying to corridor mouth from field layout")
+                        self.fc.set_yaw(0.0, relative=False)
+                    dist = self._fly_towards(
+                        FIELD.CORRIDOR_ENTRY_X_M - 1.0, FIELD.FORWARD_CORRIDOR_Y_M, self.config.SLOW_SPEED_MPS
+                    )
+                    if dist < 0.4:
+                        self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
+                        self.state = MissionState.ENTER_CORRIDOR
+                        self.banner_search_cnt = 0
 
         elif self.state == MissionState.ENTER_CORRIDOR:
             if d_left_w < 3.0 and d_right_w < 3.0:
@@ -1564,7 +1757,11 @@ class MissionFSM:
             lat_center_err = (d_right_w - d_left_w) / 2.0 if (d_left_w > 0 and d_right_w > 0) else 0.0
             vy_corr = max(-0.4, min(0.4, 0.45 * lat_center_err))
 
-            if (fwd_dist > 6.0 and d_left_w > 3.0 and d_right_w > 3.0) or (lpos.x_rel >= self.config.CORRIDOR_LENGTH_EST_M):
+            lost_for = self._walls_lost_for(d_left_w, d_right_w)
+            if (fwd_dist > 6.0 and lost_for >= self.config.CORRIDOR_BLIND_M) or (
+                lpos.x_rel >= self.config.CORRIDOR_LENGTH_EST_M
+            ):
+                self.walls_lost_at = None
                 self.coord_mgr.register_landmark(
                     "CORRIDOR_EXIT",
                     self.coord_mgr.global_pos.x,
@@ -1584,6 +1781,9 @@ class MissionFSM:
             self.fc.set_altitude(self.config.DELIVERY_SEARCH_ALT_M)
             self.state = MissionState.SCAN_TARGET_QR
             self.qr_confirm_cnt = 0
+            self.search_wps = delivery_search_waypoints(self.config)
+            self.search_idx = 0
+            self.qr_cands, self.inspecting = [], None
 
         elif self.state == MissionState.SCAN_TARGET_QR:
             matched_qr = None
@@ -1599,6 +1799,8 @@ class MissionFSM:
                 break
 
             if matched_qr is not None:
+                if self.qr_confirm_cnt == 0:
+                    self.fc.stop()  # hold still while confirming over 3 frames
                 self.qr_confirm_cnt += 1
                 log.info(f"[SCAN_TARGET] Target matched ({self.qr_confirm_cnt}/{self.config.QR_CONFIRM_COUNT})")
                 if self.qr_confirm_cnt >= self.config.QR_CONFIRM_COUNT:
@@ -1608,39 +1810,62 @@ class MissionFSM:
                         self.coord_mgr.global_pos.y,
                         self.coord_mgr.global_pos.z,
                     )
+                    qx = float(np.mean(matched_qr[:, 0]))
+                    qy = float(np.mean(matched_qr[:, 1]))
+                    off = pixel_to_ground(
+                        qx, qy, bgr.shape[1], bgr.shape[0], -gz,
+                        self.config.CAMERA_PITCH_DEG, self.config.CAMERA_HFOV_DEG,
+                    )
+                    if off is not None:
+                        yaw_r = math.radians(yaw)
+                        f_m, r_m = off
+                        self.target_xy = (
+                            gx + f_m * math.cos(yaw_r) - r_m * math.sin(yaw_r),
+                            gy + f_m * math.sin(yaw_r) + r_m * math.cos(yaw_r),
+                        )
+                        log.info(f"[SCAN_TARGET] Target ground position ({self.target_xy[0]:.2f}, {self.target_xy[1]:.2f})")
                     log.info("[SCAN_TARGET] Target Confirmed! Descending to 5m -> ALIGN_PAYLOAD")
                     self.fc.set_altitude(self.config.PAYLOAD_DROP_ALT_M)
                     self.state = MissionState.ALIGN_PAYLOAD
             else:
                 self.qr_confirm_cnt = 0
-                self.fc.send_body_velocity(vx=0.3, vy=0.2, vz=0.0, duration=0.4)
+                self._search_for_target(bgr, qr_codes, gx, gy, -gz, yaw)
 
         elif self.state == MissionState.ALIGN_PAYLOAD:
-            frame_cx = bgr.shape[1] // 2
-            frame_cy = bgr.shape[0] // 2
-            aligned = False
-
+            # The forward camera is pitched 45 deg: "QR in image centre" means
+            # the QR is ~alt metres AHEAD, not below. Fly to the QR's ground
+            # position (estimated at confirmation, refined while visible).
             for txt, quad in qr_codes:
                 if txt != self.target_id:
                     continue
-                qx = int(np.mean(quad[:, 0]))
-                qy = int(np.mean(quad[:, 1]))
-                err_x = qx - frame_cx
-                err_y = qy - frame_cy
-
-                vy = max(-0.25, min(0.25, 0.0025 * err_x))
-                vx = max(-0.25, min(0.25, -0.0025 * err_y))
-
-                if abs(err_x) < 25 and abs(err_y) < 25:
-                    aligned = True
-                else:
-                    self.fc.send_body_velocity(vx=vx, vy=vy, vz=0.0, duration=0.2)
+                off = pixel_to_ground(
+                    float(np.mean(quad[:, 0])), float(np.mean(quad[:, 1])),
+                    bgr.shape[1], bgr.shape[0], -gz,
+                    self.config.CAMERA_PITCH_DEG, self.config.CAMERA_HFOV_DEG,
+                )
+                if off is not None and off[0] > 1.0:  # far enough for a reliable fix
+                    yaw_r = math.radians(yaw)
+                    nx = gx + off[0] * math.cos(yaw_r) - off[1] * math.sin(yaw_r)
+                    ny = gy + off[0] * math.sin(yaw_r) + off[1] * math.cos(yaw_r)
+                    if self.target_xy is None:
+                        self.target_xy = (nx, ny)
+                    else:  # light smoothing
+                        self.target_xy = (0.7 * self.target_xy[0] + 0.3 * nx, 0.7 * self.target_xy[1] + 0.3 * ny)
                 break
 
-            if aligned:
-                log.info("[ALIGN] Centered over target -> DROP_PAYLOAD")
-                self.fc.stop()
-                self.state = MissionState.DROP_PAYLOAD
+            if self.target_xy is None:
+                log.warning("[ALIGN] No target position yet -> back to SCAN_TARGET_QR")
+                self.state = MissionState.SCAN_TARGET_QR
+            else:
+                dist = self._fly_towards(self.target_xy[0], self.target_xy[1], self.config.SLOW_SPEED_MPS)
+                if dist < 0.3:
+                    self.fc.stop()
+                    self.align_settle_cnt += 1
+                    if self.align_settle_cnt >= 3:
+                        log.info(f"[ALIGN] Over target (err {dist:.2f}m) -> DROP_PAYLOAD")
+                        self.state = MissionState.DROP_PAYLOAD
+                else:
+                    self.align_settle_cnt = 0
 
         elif self.state == MissionState.DROP_PAYLOAD:
             execute_winch_delivery(self.fc, self.config)
@@ -1654,18 +1879,37 @@ class MissionFSM:
             self.state = MissionState.ALIGN_RETURN_CORRIDOR
 
         elif self.state == MissionState.ALIGN_RETURN_CORRIDOR:
-            self.fc.set_altitude(self.config.RETURN_CORRIDOR_ALT_M)
-            if banner_box is not None or (d_left_w < 3.0 and d_right_w < 3.0):
-                log.info("[RETURN_CORRIDOR] Entrance acquired -> FOLLOW_CORRIDOR_RETURN")
+            # The return lap uses the EXIT corridor (blue banners, obstacles),
+            # which sits beside the forward corridor. Go to its mouth first.
+            mouth_x = FIELD.corridor_exit_x + 1.5
+            mouth_y = FIELD.RETURN_CORRIDOR_Y_M
+            if not self.return_mouth_reached:
+                if self._fly_towards(mouth_x, mouth_y, self.config.CRUISE_SPEED_MPS) < 0.4:
+                    self.fc.stop()
+                    self.fc.set_yaw(180.0, relative=False)
+                    self.fc.set_altitude(self.config.RETURN_CORRIDOR_ALT_M)
+                    self.return_mouth_reached = True
+                    log.info("[RETURN_CORRIDOR] At exit-corridor mouth -> aligning")
+            elif d_left_w < 3.0 and d_right_w < 3.0:
+                log.info("[RETURN_CORRIDOR] Walls acquired -> FOLLOW_CORRIDOR_RETURN")
                 self.state = MissionState.FOLLOW_CORRIDOR_RETURN
             else:
-                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS, vy=0.0, vz=0.0, duration=0.3)
+                vy = 0.0
+                exit_box = percept.get("exit_banner_box")
+                if exit_box is not None:
+                    err = (exit_box[0] + exit_box[2] // 2) - bgr.shape[1] // 2
+                    vy = max(-0.3, min(0.3, 0.003 * err))
+                self.fc.send_body_velocity(vx=self.config.SLOW_SPEED_MPS, vy=vy, vz=0.0, duration=0.3)
 
         elif self.state == MissionState.FOLLOW_CORRIDOR_RETURN:
             lat_center_err = (d_right_w - d_left_w) / 2.0 if (d_left_w > 0 and d_right_w > 0) else 0.0
             vy_corr = max(-0.4, min(0.4, 0.45 * lat_center_err))
 
-            if (d_left_w > 4.0 and d_right_w > 4.0) or (self.coord_mgr.global_pos.x <= 2.5):
+            lost_for = self._walls_lost_for(d_left_w, d_right_w)
+            if lost_for >= self.config.CORRIDOR_BLIND_M or (
+                self.coord_mgr.global_pos.x <= FIELD.CORRIDOR_ENTRY_X_M - 0.5
+            ):
+                self.walls_lost_at = None
                 log.info("[RETURN_CORRIDOR] Cleared return corridor -> APPROACH_HOME")
                 self.state = MissionState.APPROACH_HOME
             elif fwd_dist < self.config.OBS_SLOW_DIST_M:
@@ -1678,16 +1922,21 @@ class MissionFSM:
             dist_home = math.sqrt(gx**2 + gy**2)
             log.info(f"[HOME_APPROACH] Dist to Home: {dist_home:.2f} m")
 
-            if dist_home < 0.6:
-                log.info("[HOME_APPROACH] Over Home Pad -> PRECISION_LAND")
+            if dist_home < self.config.HOME_TOLERANCE_M:
+                # Pad is only 1.22m square: hold and confirm we are settled
+                # over it before committing to LAND.
                 self.fc.stop()
-                self.state = MissionState.PRECISION_LAND
+                self.home_settle_cnt += 1
+                if self.home_settle_cnt >= self.config.HOME_SETTLE_STEPS:
+                    log.info("[HOME_APPROACH] Settled over 4x4 ft pad -> PRECISION_LAND")
+                    self.state = MissionState.PRECISION_LAND
             else:
                 yaw_rad = math.radians(self.coord_mgr.global_pos.yaw_deg)
                 dx, dy = -gx, -gy
                 vx_body = dx * math.cos(yaw_rad) + dy * math.sin(yaw_rad)
                 vy_body = -dx * math.sin(yaw_rad) + dy * math.cos(yaw_rad)
-                spd = min(self.config.SLOW_SPEED_MPS, max(0.2, dist_home * 0.5))
+                self.home_settle_cnt = 0
+                spd = min(self.config.SLOW_SPEED_MPS, max(0.15, dist_home * 0.6))
                 mag = math.sqrt(vx_body**2 + vy_body**2)
                 if mag > 0.01:
                     vx_b = (vx_body / mag) * spd
@@ -1697,8 +1946,10 @@ class MissionFSM:
                     self.fc.send_body_velocity(vx=0.0, vy=0.0, vz=0.0, duration=0.2)
 
         elif self.state == MissionState.PRECISION_LAND:
-            self.fc.land()
-            log.info("[LAND] Touchdown complete -> COMPLETE")
+            if self.fc.land():
+                log.info("[LAND] Touchdown complete -> COMPLETE")
+            else:
+                log.warning("[LAND] Land did not confirm disarm in time -> COMPLETE (check vehicle)")
             self.state = MissionState.COMPLETE
 
         elif self.state == MissionState.AVOID_OBSTACLES:
@@ -1797,9 +2048,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--camera",
-        choices=["oakd", "webcam", "mock", "multi"],
+        choices=["oakd", "webcam", "mock", "multi", "sim"],
         default="oakd",
-        help="Camera sensor backend: 'oakd' (Forward OAK-D Lite), 'multi' (3-Camera Suite: OAK-D + Arducam HQ + Skydroid FPV), 'webcam', or 'mock'.",
+        help="Camera sensor backend: 'oakd' (Forward OAK-D Lite), 'multi' (3-Camera Suite: OAK-D + Arducam HQ + Skydroid FPV), 'webcam', 'mock', or 'sim' (renders the field from the FC pose; default with --sim, use with SITL).",
     )
     parser.add_argument(
         "--headless",
@@ -1821,8 +2072,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def create_camera(cam_type: str, sim_mode: bool) -> CameraInterface:
-    if sim_mode or cam_type == "mock":
+def create_camera(cam_type: str, sim_mode: bool, fc: Any = None) -> CameraInterface:
+    if cam_type == "sim" or (sim_mode and cam_type != "mock"):
+        from aerothon.sim_field_camera import FieldSimCamera
+
+        log.info("[CAMERA] Instantiating FieldSimCamera (renders AeroTHON field from FC pose).")
+        return FieldSimCamera(fc, pitch_deg=CFG.CAMERA_PITCH_DEG, hfov_deg=CFG.CAMERA_HFOV_DEG)
+    if cam_type == "mock":
         log.info("[CAMERA] Instantiating MockCamera.")
         return MockCamera()
     elif cam_type == "webcam":
@@ -1848,12 +2104,12 @@ def main() -> None:
     else:
         log.warning("[SAFETY STATUS] REAL FLIGHT EXECUTION IS ENABLED! Hardware will be armed.")
 
-    camera = create_camera(args.camera, args.sim)
     fc = create_flight_controller(
         connection_string=args.connect,
         enable_real_flight=args.enable_real_flight and (not args.sim),
         config=CFG,
     )
+    camera = create_camera(args.camera, args.sim, fc)
     coord_mgr = CoordinateManager(config=CFG)
     perception = PerceptionPipeline(config=CFG)
     recorder = FlightDataRecorder(log_path=args.log_file)

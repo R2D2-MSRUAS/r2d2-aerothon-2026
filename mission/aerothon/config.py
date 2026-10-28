@@ -11,6 +11,8 @@ from __future__ import annotations
 import dataclasses
 from enum import Enum, auto
 
+from aerothon.field_spec import FIELD
+
 
 class MissionState(Enum):
     """Complete Mission State Machine including Forward & Backward passes."""
@@ -49,11 +51,11 @@ class MissionConfig:
 
     # Altitudes (meters above ground)
     TAKEOFF_ALT_M: float = 5.0  # 5.0m takeoff & initial QR scan
-    CORRIDOR_ALT_M: float = 3.048  # 10 ft (~3.05m) corridor navigation altitude
+    CORRIDOR_ALT_M: float = FIELD.CORRIDOR_FLIGHT_ALT_M  # 1.5m, inside 8 ft (2.44m) walls
     DELIVERY_SEARCH_ALT_M: float = 10.0  # 10.0m delivery zone QR search altitude
     PAYLOAD_DROP_ALT_M: float = 5.0  # 5.0m precision winch drop altitude
     RETURN_CRUISE_ALT_M: float = 10.0  # 10.0m return climb altitude
-    RETURN_CORRIDOR_ALT_M: float = 3.048  # 10 ft return corridor altitude
+    RETURN_CORRIDOR_ALT_M: float = FIELD.CORRIDOR_FLIGHT_ALT_M  # 1.5m return corridor altitude
 
     # Velocities (m/s)
     CRUISE_SPEED_MPS: float = 1.8  # Standard cruise speed
@@ -68,8 +70,8 @@ class MissionConfig:
     OBS_CRITICAL_STOP_M: float = (
         0.8  # < 0.8m: Immediate emergency stop & lateral evasion
     )
-    CORRIDOR_WIDTH_M: float = 3.5  # Specified arena corridor width
-    CORRIDOR_LENGTH_EST_M: float = 15.0  # Nominal corridor length
+    CORRIDOR_WIDTH_M: float = FIELD.CORRIDOR_WIDTH_M  # 11.5 ft (3.51m) between walls
+    CORRIDOR_LENGTH_EST_M: float = FIELD.CORRIDOR_LENGTH_M + 1.0  # 22 ft walls + 1m margin
 
     # Tolerances
     ALTITUDE_TOLERANCE_M: float = 0.30  # Altitude convergence threshold

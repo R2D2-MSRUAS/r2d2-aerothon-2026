@@ -208,7 +208,7 @@ class MissionFSM:
                         self.coord_mgr.global_pos.z,
                     )
                     log.info(
-                        "[BANNER] Corridor entry reached. Descending to 10 ft (3m) -> ENTER_CORRIDOR"
+                        f"[BANNER] Corridor entry reached. Descending to {self.config.CORRIDOR_ALT_M:.1f}m -> ENTER_CORRIDOR"
                     )
                     self.fc.set_altitude(self.config.CORRIDOR_ALT_M)
                     self.state = MissionState.ENTER_CORRIDOR
@@ -423,7 +423,7 @@ class MissionFSM:
             dist_home = math.sqrt(gx**2 + gy**2)
             log.info(f"[HOME_APPROACH] Dist to Home: {dist_home:.2f} m")
 
-            if dist_home < 0.6:
+            if dist_home < 0.25:  # 4x4 ft pad: stay well inside its 0.61m half-width
                 log.info("[HOME_APPROACH] Over Home Pad -> PRECISION_LAND")
                 self.fc.stop()
                 self.state = MissionState.PRECISION_LAND
